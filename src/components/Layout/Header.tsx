@@ -55,8 +55,8 @@ const Header: React.FC = () => {
                 to={item.path}
                 className={`px-3 py-2 rounded-lg transition-colors ${
                   isActive(item.path)
-                    ? 'bg-gold-500 text-black font-semibold'
-                    : 'hover:bg-gray-800'
+                    ? 'bg-gold text-white font-semibold'
+                    : 'hover:bg-gray-800 text-white'
                 }`}
               >
                 {item.label}
@@ -125,7 +125,7 @@ const Header: React.FC = () => {
               onClick={() => setIsMenuOpen(false)}
               className={`block px-4 py-3 rounded-lg transition-colors ${
                 isActive(item.path)
-                  ? 'bg-gold-500 text-black font-semibold border-2 border-gold-400'
+                  ? 'bg-gold text-white font-semibold'
                   : 'text-white hover:bg-gray-800'
               }`}
             >
