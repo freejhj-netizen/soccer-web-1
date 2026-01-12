@@ -11,8 +11,8 @@ const PlayerPage: React.FC = () => {
   const { userData } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
-  const [positionFilter, setPositionFilter] = useState<'전체' | 'FIELD' | 'GK'>('전체');
-  const [ageFilter, setAgeFilter] = useState<'전체' | 'U12' | 'U11' | 'U10' | 'U9'>('전체');
+  const [positionFilter, setPositionFilter] = useState<'전체' | '필드' | '골키퍼'>('전체');
+  const [ageFilter, setAgeFilter] = useState<'전체' | 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7'>('전체');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
@@ -21,7 +21,8 @@ const PlayerPage: React.FC = () => {
     nickname: '',
     grade: '',
     position: 'FIELD' as 'FIELD' | 'GK',
-    ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9',
+    ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+    jerseyNumber: '',
     photo: null as File | null,
   });
 
@@ -58,7 +59,11 @@ const PlayerPage: React.FC = () => {
     let filtered = [...players];
 
     if (positionFilter !== '전체') {
-      filtered = filtered.filter((p) => p.position === positionFilter);
+      const positionMap: Record<'필드' | '골키퍼', 'FIELD' | 'GK'> = {
+        '필드': 'FIELD',
+        '골키퍼': 'GK',
+      };
+      filtered = filtered.filter((p) => p.position === positionMap[positionFilter]);
     }
 
     if (ageFilter !== '전체') {
@@ -76,6 +81,7 @@ const PlayerPage: React.FC = () => {
       grade: '',
       position: 'FIELD',
       ageGroup: 'U12',
+      jerseyNumber: '',
       photo: null,
     });
     setShowModal(true);
@@ -89,6 +95,7 @@ const PlayerPage: React.FC = () => {
       grade: player.grade,
       position: player.position,
       ageGroup: player.ageGroup,
+      jerseyNumber: player.jerseyNumber?.toString() || '',
       photo: null,
     });
     setShowModal(true);
@@ -129,6 +136,7 @@ const PlayerPage: React.FC = () => {
         position: formData.position,
         ageGroup: formData.ageGroup,
         photoUrl,
+        jerseyNumber: formData.jerseyNumber ? parseInt(formData.jerseyNumber) : undefined,
         createdAt: editingPlayer?.createdAt || new Date(),
       };
 
@@ -157,11 +165,11 @@ const PlayerPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-white">선수 명단</h1>
+          <h1 className="text-3xl font-bold text-white">선수 목록</h1>
           {isAdmin && (
-            <button onClick={handleAdd} className="btn-primary flex items-center space-x-2">
+            <button onClick={handleAdd} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex items-center space-x-2">
               <PlusIcon className="w-5 h-5" />
-              <span>선수 추가</span>
+              <span>선수 등록</span>
             </button>
           )}
         </div>
@@ -171,14 +179,14 @@ const PlayerPage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium mb-2 text-white">포지션</label>
             <div className="flex space-x-2">
-              {['전체', 'FIELD', 'GK'].map((pos) => (
+              {['전체', '필드', '골키퍼'].map((pos) => (
                 <button
                   key={pos}
                   onClick={() => setPositionFilter(pos as any)}
-                  className={`px-4 py-2 rounded-lg ${
+                  className={`min-w-[80px] px-4 py-2 rounded-lg text-center border ${
                     positionFilter === pos
-                      ? 'bg-gold-500 text-black font-semibold'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      ? 'bg-blue-500 text-white font-semibold border-blue-600'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-gray-700'
                   }`}
                 >
                   {pos}
@@ -188,15 +196,15 @@ const PlayerPage: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-white">연령</label>
-            <div className="flex space-x-2 flex-wrap">
-              {['전체', 'U12', 'U11', 'U10', 'U9'].map((age) => (
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+              {['전체', 'U12', 'U11', 'U10', 'U9', 'U8', 'U7'].map((age) => (
                 <button
                   key={age}
                   onClick={() => setAgeFilter(age as any)}
-                  className={`px-4 py-2 rounded-lg ${
+                  className={`w-full px-4 py-2 rounded-lg text-center border ${
                     ageFilter === age
-                      ? 'bg-gold-500 text-black font-semibold'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      ? 'bg-blue-500 text-white font-semibold border-blue-600'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-gray-700'
                   }`}
                 >
                   {age}
@@ -207,47 +215,61 @@ const PlayerPage: React.FC = () => {
         </div>
 
         {/* 선수 카드 그리드 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredPlayers.map((player) => (
-            <div key={player.id} className="card p-0 overflow-hidden">
-              <div className="aspect-square bg-gray-800 relative">
-                {player.photoUrl ? (
-                  <img
-                    src={player.photoUrl}
-                    alt={player.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    사진 없음
-                  </div>
-                )}
-                {isAdmin && (
-                  <div className="absolute top-2 right-2 flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(player)}
-                      className="bg-gold-500 text-black p-2 rounded hover:bg-gold-600"
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(player.id)}
-                      className="bg-red-500 text-white p-2 rounded hover:bg-red-600"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {filteredPlayers.map((player) => {
+            const positionText = player.position === 'FIELD' ? '필드' : '골키퍼';
+            return (
+              <div key={player.id} className="card p-0 overflow-hidden">
+                <div className="aspect-square bg-gray-800 relative">
+                  {player.photoUrl ? (
+                    <img
+                      src={player.photoUrl}
+                      alt={player.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                      사진 없음
+                    </div>
+                  )}
+                  {player.jerseyNumber && (
+                    <div className="absolute top-2 right-2 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center border-2 border-gray-700 shadow-lg z-10">
+                      <span className="text-white text-sm font-bold">{player.jerseyNumber}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">{positionText}</p>
+                  <p className="text-xs text-gray-400 mb-0.5">{player.ageGroup}</p>
+                  <p className="text-xs font-bold text-white mb-0.5">{player.name}</p>
+                  {player.nickname && (
+                    <p className="text-xs text-blue-500 mb-2">{player.nickname}</p>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <div className="border-t border-gray-700 my-2"></div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(player)}
+                          className="flex-1 bg-blue-500 text-white px-2 py-1.5 rounded hover:bg-blue-600 transition-colors flex items-center justify-center space-x-1"
+                        >
+                          <PencilIcon className="w-4 h-4" />
+                          <span className="text-xs">수정</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(player.id)}
+                          className="flex-1 bg-red-500 text-white px-2 py-1.5 rounded hover:bg-red-600 transition-colors flex items-center justify-center space-x-1"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          <span className="text-xs">삭제</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-400 mb-1">학년: {player.grade}</p>
-                <p className="text-lg font-bold mb-1 text-white">이름: {player.name}</p>
-                {player.nickname && (
-                  <p className="text-sm text-gold-400">별명: {player.nickname}</p>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {filteredPlayers.length === 0 && (
@@ -275,19 +297,19 @@ const PlayerPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-white">별명</label>
+                  <label className="block text-sm font-medium mb-2 text-white">별명 *</label>
                   <input
                     type="text"
+                    required
                     className="input-field"
                     value={formData.nickname}
                     onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-white">학년 *</label>
+                  <label className="block text-sm font-medium mb-2 text-white">학년</label>
                   <input
                     type="text"
-                    required
                     className="input-field"
                     placeholder="예: 6학년"
                     value={formData.grade}
@@ -318,7 +340,22 @@ const PlayerPage: React.FC = () => {
                     <option value="U11">U11</option>
                     <option value="U10">U10</option>
                     <option value="U9">U9</option>
+                    <option value="U8">U8</option>
+                    <option value="U7">U7</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">등번호 *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    required
+                    className="input-field"
+                    placeholder="예: 7"
+                    value={formData.jerseyNumber}
+                    onChange={(e) => setFormData({ ...formData, jerseyNumber: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-white">사진</label>
@@ -330,7 +367,7 @@ const PlayerPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex space-x-2">
-                  <button type="submit" className="btn-primary flex-1">저장</button>
+                  <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex-1">저장</button>
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}

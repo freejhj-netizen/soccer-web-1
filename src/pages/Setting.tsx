@@ -1,35 +1,29 @@
 import React, { useState } from 'react';
-import { updatePassword, updateProfile } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { updatePassword, deleteUser } from 'firebase/auth';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 
 const Setting: React.FC = () => {
   const { currentUser, userData, logout } = useAuth();
-  const [displayName, setDisplayName] = useState(userData?.displayName || '');
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-
-    if (!currentUser) return;
-
-    try {
-      await updateProfile(currentUser, { displayName });
-      if (currentUser && db) {
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          displayName,
-        });
-      }
-      setMessage('프로필이 업데이트되었습니다.');
-    } catch (err: any) {
-      setError(err.message || '프로필 업데이트에 실패했습니다.');
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case 'admin':
+        return '관리자';
+      case 'member':
+        return '학부모/선수';
+      case 'guest':
+        return '손님';
+      default:
+        return '손님';
     }
   };
 
@@ -66,6 +60,29 @@ const Setting: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!confirm('정말 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+      return;
+    }
+
+    if (!currentUser || !db) return;
+
+    try {
+      // Firestore에서 사용자 데이터 삭제
+      await deleteDoc(doc(db, 'users', currentUser.uid));
+      
+      // Firebase Auth에서 사용자 삭제
+      await deleteUser(currentUser);
+      
+      // 로그아웃 및 로그인 페이지로 이동
+      await logout();
+      navigate('/login');
+    } catch (err: any) {
+      console.error('Error deleting account:', err);
+      setError(err.message || '회원탈퇴에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
         <h1 className="text-3xl font-bold mb-8 text-white">설정</h1>
@@ -74,38 +91,36 @@ const Setting: React.FC = () => {
           {/* 프로필 정보 */}
           <div className="card">
             <h2 className="text-xl font-bold mb-4 text-white">프로필 정보</h2>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                <div className="bg-red-900 border border-red-700 text-red-300 px-4 py-3 rounded-lg">
                   {error}
                 </div>
               )}
               {message && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                <div className="bg-green-900 border border-green-700 text-green-300 px-4 py-3 rounded-lg">
                   {message}
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-2">이메일</label>
+                <label className="block text-sm font-medium mb-2 text-white">이메일</label>
                 <input
                   type="email"
                   disabled
-                  className="input-field bg-gray-100"
+                  className="input-field"
                   value={currentUser?.email || ''}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">이름</label>
+                <label className="block text-sm font-medium mb-2 text-white">권한</label>
                 <input
                   type="text"
+                  disabled
                   className="input-field"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="이름을 입력하세요"
+                  value={getRoleLabel(userData?.role)}
                 />
               </div>
-              <button type="submit" className="btn-primary">프로필 업데이트</button>
-            </form>
+            </div>
           </div>
 
           {/* 비밀번호 변경 */}
@@ -134,15 +149,29 @@ const Setting: React.FC = () => {
                   placeholder="새 비밀번호를 다시 입력하세요"
                 />
               </div>
-              <button type="submit" className="btn-primary">비밀번호 변경</button>
+              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors w-full">비밀번호 변경</button>
             </form>
           </div>
 
           {/* 로그아웃 */}
           <div className="card">
             <h2 className="text-xl font-bold mb-4 text-white">계정</h2>
-            <button onClick={handleLogout} className="btn-secondary">
+            <button onClick={handleLogout} className="btn-secondary w-full">
               로그아웃
+            </button>
+          </div>
+
+          {/* 회원탈퇴 */}
+          <div className="card bg-red-900 border-red-700">
+            <h2 className="text-xl font-bold mb-4 text-white">회원탈퇴</h2>
+            <p className="text-white mb-4 text-sm">
+              회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.
+            </p>
+            <button 
+              onClick={handleDeleteAccount} 
+              className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors w-full"
+            >
+              회원탈퇴
             </button>
           </div>
         </div>

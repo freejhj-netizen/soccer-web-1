@@ -49,9 +49,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userDoc.exists()) {
         setUserData(userDoc.data() as User);
       } else {
-        // 사용자 데이터가 없으면 기본값으로 생성
-        // 관리자 이메일이거나 개발 모드인 경우 admin 권한 부여
-        const isAdmin = email === adminEmail || (isDevMode && isLocalhost);
+        // 사용자 데이터가 없으면 기본값으로 생성 (기본 권한: guest)
+        // 개발 모드이고 로컬호스트인 경우에만 admin 권한 부여
+        const isAdmin = (isDevMode && isLocalhost);
         const defaultUser: User = {
           uid,
           email: email || '',
@@ -95,20 +95,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user && db) {
-        // 관리자 이메일 확인 및 권한 부여
-        const isAdminEmail = user.email === adminEmail;
-        
-        if (isAdminEmail || (isDevMode && isLocalhost)) {
+        // 개발 모드이고 로컬호스트인 경우에만 자동 admin 권한 부여
+        if (isDevMode && isLocalhost) {
           try {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
+            if (!userDoc.exists()) {
               await setDoc(doc(db, 'users', user.uid), {
                 uid: user.uid,
                 email: user.email,
                 role: 'admin',
                 createdAt: new Date(),
               }, { merge: true });
-              console.log('✅ 관리자 권한이 부여되었습니다.');
+              console.log('✅ 개발 모드: 관리자 권한이 부여되었습니다.');
             }
           } catch (error) {
             console.error('Error setting admin role:', error);

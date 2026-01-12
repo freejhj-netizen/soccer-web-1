@@ -39,12 +39,10 @@ const Register: React.FC = () => {
       const user = userCredential.user;
 
       // 사용자 데이터 생성 (기본 권한: guest)
-      const userRole = user.email === 'cjjhj@naver.com' ? 'admin' : 'guest';
-      
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
-        role: userRole,
+        role: 'guest',
         createdAt: serverTimestamp(),
       });
 

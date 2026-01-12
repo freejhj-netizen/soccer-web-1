@@ -176,20 +176,28 @@ const Admin: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-2 text-white">권한</label>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mb-4">
                     {(['admin', 'member', 'guest'] as UserRole[]).map((role) => (
                       <label key={role} className="flex items-center space-x-2 text-white">
                         <input
                           type="radio"
                           name="role"
                           checked={selectedUser.role === role}
-                          onChange={() => handleRoleChange(selectedUser.uid, role)}
+                          onChange={() => {
+                            setSelectedUser({ ...selectedUser, role });
+                          }}
                           className="w-4 h-4 text-gold-500"
                         />
                         <span>{getRoleLabel(role)}</span>
                       </label>
                     ))}
                   </div>
+                  <button
+                    onClick={() => handleRoleChange(selectedUser.uid, selectedUser.role)}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors w-full"
+                  >
+                    권한 저장
+                  </button>
                 </div>
 
                 <div>

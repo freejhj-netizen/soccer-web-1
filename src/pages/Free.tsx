@@ -19,7 +19,7 @@ const Free: React.FC = () => {
     content: '',
   });
 
-  const canWrite = userData?.role === 'admin' || userData?.role === 'member';
+  const isAdmin = userData?.role === 'admin';
 
   useEffect(() => {
     fetchPosts();
@@ -128,8 +128,8 @@ const Free: React.FC = () => {
     <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">자유게시판</h1>
-          {canWrite && (
-            <button onClick={handleAdd} className="btn-primary flex items-center space-x-2">
+          {isAdmin && (
+            <button onClick={handleAdd} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex items-center space-x-2">
               <PlusIcon className="w-5 h-5" />
               <span>글쓰기</span>
             </button>
@@ -139,7 +139,7 @@ const Free: React.FC = () => {
         <div className="card overflow-x-auto">
           <div className="space-y-2">
             {posts.map((post) => {
-              const canEdit = userData?.uid === post.authorUid || userData?.role === 'admin';
+              const canEdit = isAdmin;
               return (
                 <div
                   key={post.id}

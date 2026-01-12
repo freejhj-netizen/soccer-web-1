@@ -14,7 +14,6 @@ const Header: React.FC = () => {
     { path: '/calendar', label: 'CALENDAR' },
     { path: '/game', label: 'SCORE' },
     { path: '/notice', label: '공지사항' },
-    { path: '/free', label: '자유게시판' },
     { path: '/setting', label: 'SETTING' },
   ];
 
@@ -55,7 +54,7 @@ const Header: React.FC = () => {
                 to={item.path}
                 className={`px-3 py-2 rounded-lg transition-colors ${
                   isActive(item.path)
-                    ? 'bg-gold text-white font-semibold'
+                    ? 'bg-blue-500 text-white font-semibold'
                     : 'hover:bg-gray-800 text-white'
                 }`}
               >
@@ -125,7 +124,7 @@ const Header: React.FC = () => {
               onClick={() => setIsMenuOpen(false)}
               className={`block px-4 py-3 rounded-lg transition-colors ${
                 isActive(item.path)
-                  ? 'bg-gold text-white font-semibold'
+                  ? 'bg-blue-500 text-white font-semibold'
                   : 'text-white hover:bg-gray-800'
               }`}
             >

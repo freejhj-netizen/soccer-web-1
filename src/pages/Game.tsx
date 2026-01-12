@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Game } from '../types';
 
-import { PlusIcon, PencilIcon, TrashIcon, FilmIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, FilmIcon } from '@heroicons/react/24/outline';
 
 const GamePage: React.FC = () => {
   const { userData } = useAuth();
@@ -16,7 +15,7 @@ const GamePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
-  const [seasonFilter, setSeasonFilter] = useState<string>(new Date().getFullYear().toString());
+  const [seasonFilter, setSeasonFilter] = useState<string>('전체');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [ageFilter, setAgeFilter] = useState<string>('전체');
   const [typeFilter, setTypeFilter] = useState<string>('전체');
@@ -33,19 +32,20 @@ const GamePage: React.FC = () => {
 
   const [formData, setFormData] = useState({
     date: '',
-    ageGroup: 'U12',
+    year: '2026',
+    ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+    type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
     opponent: '',
-    opponentLogo: null as File | null,
     ourScore: 0,
     opponentScore: 0,
-    type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
-    videoUrl: '',
+    result: '승리' as '승리' | '무승부' | '패배',
     quarters: {
-      q1: { our: 0, opponent: 0 },
-      q2: { our: 0, opponent: 0 },
-      q3: { our: 0, opponent: 0 },
-      q4: { our: 0, opponent: 0 },
+      q1: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+      q2: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+      q3: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+      q4: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
     },
+    videoUrl: '',
   });
 
   const isAdmin = userData?.role === 'admin';
@@ -121,6 +121,13 @@ const GamePage: React.FC = () => {
       );
     }
 
+    // 날짜 내림차순 정렬 (최근 경기가 위로)
+    filtered.sort((a, b) => {
+      const dateA = a.date.toDate ? a.date.toDate() : new Date(a.date);
+      const dateB = b.date.toDate ? b.date.toDate() : new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+
     setFilteredGames(filtered);
   };
 
@@ -156,99 +163,58 @@ const GamePage: React.FC = () => {
     });
   };
 
-  const getYears = () => {
-    const years = new Set<number>();
-    games.forEach((g) => {
-      const date = g.date.toDate ? g.date.toDate() : new Date(g.date);
-      years.add(date.getFullYear());
-    });
-    return Array.from(years).sort((a, b) => b - a);
-  };
 
   const handleAdd = () => {
     setEditingGame(null);
     setFormData({
       date: '',
-      ageGroup: 'U12',
+      year: '2026',
+      ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+      type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
       opponent: '',
-      opponentLogo: null,
       ourScore: 0,
       opponentScore: 0,
-      type: '연습경기',
-      videoUrl: '',
+      result: '승리' as '승리' | '무승부' | '패배',
       quarters: {
-        q1: { our: 0, opponent: 0 },
-        q2: { our: 0, opponent: 0 },
-        q3: { our: 0, opponent: 0 },
-        q4: { our: 0, opponent: 0 },
+        q1: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+        q2: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+        q3: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+        q4: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
       },
+      videoUrl: '',
     });
     setShowModal(true);
   };
 
-  const handleEdit = (game: Game) => {
-    setEditingGame(game);
-    const date = game.date.toDate ? game.date.toDate() : new Date(game.date);
-    setFormData({
-      date: date.toISOString().slice(0, 10),
-      ageGroup: game.ageGroup,
-      opponent: game.opponent,
-      opponentLogo: null,
-      ourScore: game.ourScore,
-      opponentScore: game.opponentScore,
-      type: game.type,
-      videoUrl: game.videoUrl || '',
-      quarters: game.quarters,
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까?') || !db) return;
-
-    try {
-      await deleteDoc(doc(db, 'games', id));
-      fetchGames();
-    } catch (error) {
-      console.error('Error deleting game:', error);
-      alert('삭제에 실패했습니다.');
-    }
-  };
+  // 관리자 기능 (나중에 사용 가능)
+  // const handleEdit = (game: Game) => { ... }
+  // const handleDelete = async (id: string) => { ... }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !storage) {
+    if (!db) {
       alert('Firebase 설정이 필요합니다.');
       return;
     }
 
     try {
-      let opponentLogoUrl = editingGame?.opponentLogoUrl || '';
-
-      if (formData.opponentLogo) {
-        const storageRef = ref(storage, `logos/${Date.now()}_${formData.opponentLogo.name}`);
-        await uploadBytes(storageRef, formData.opponentLogo);
-        opponentLogoUrl = await getDownloadURL(storageRef);
-      }
-
-      const ourTotal = formData.quarters.q1.our + formData.quarters.q2.our + formData.quarters.q3.our + formData.quarters.q4.our;
-      const opponentTotal = formData.quarters.q1.opponent + formData.quarters.q2.opponent + formData.quarters.q3.opponent + formData.quarters.q4.opponent;
-
-      let result: '승리' | '무승부' | '패배';
-      if (ourTotal > opponentTotal) result = '승리';
-      else if (ourTotal === opponentTotal) result = '무승부';
-      else result = '패배';
+      const gameDate = new Date(formData.date);
+      gameDate.setFullYear(parseInt(formData.year));
 
       const gameData = {
-        date: new Date(formData.date),
+        date: gameDate,
         ageGroup: formData.ageGroup,
         opponent: formData.opponent,
-        opponentLogoUrl,
-        ourScore: ourTotal,
-        opponentScore: opponentTotal,
-        result,
+        ourScore: formData.ourScore,
+        opponentScore: formData.opponentScore,
+        result: formData.result,
         type: formData.type,
-        quarters: formData.quarters,
+        quarters: {
+          q1: { our: formData.quarters.q1.our, opponent: formData.quarters.q1.opponent },
+          q2: { our: formData.quarters.q2.our, opponent: formData.quarters.q2.opponent },
+          q3: { our: formData.quarters.q3.our, opponent: formData.quarters.q3.opponent },
+          q4: { our: formData.quarters.q4.our, opponent: formData.quarters.q4.opponent },
+        },
         videoUrl: formData.videoUrl,
         createdAt: editingGame?.createdAt || new Date(),
       };
@@ -284,7 +250,7 @@ const GamePage: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">경기 결과</h1>
           {isAdmin && (
-            <button onClick={handleAdd} className="btn-primary flex items-center space-x-2">
+            <button onClick={handleAdd} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex items-center space-x-2">
               <PlusIcon className="w-5 h-5" />
               <span>경기 추가</span>
             </button>
@@ -294,22 +260,19 @@ const GamePage: React.FC = () => {
         {/* 필터 */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium mb-2">시즌</label>
+            <label className="block text-sm font-medium mb-2 text-white">시즌</label>
             <select
               className="input-field"
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
             >
               <option value="전체">전체</option>
-              {getYears().map((year) => (
-                <option key={year} value={year.toString()}>
-                  {year}
-                </option>
-              ))}
+              <option value="2027">2027</option>
+              <option value="2026">2026</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">시작일</label>
+            <label className="block text-sm font-medium mb-2 text-white">시작일</label>
             <input
               type="date"
               className="input-field"
@@ -318,7 +281,7 @@ const GamePage: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">종료일</label>
+            <label className="block text-sm font-medium mb-2 text-white">종료일</label>
             <input
               type="date"
               className="input-field"
@@ -327,7 +290,7 @@ const GamePage: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">연령</label>
+            <label className="block text-sm font-medium mb-2 text-white">연령</label>
             <select
               className="input-field"
               value={ageFilter}
@@ -338,10 +301,12 @@ const GamePage: React.FC = () => {
               <option value="U11">U11</option>
               <option value="U10">U10</option>
               <option value="U9">U9</option>
+              <option value="U8">U8</option>
+              <option value="U7">U7</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">경기 유형</label>
+            <label className="block text-sm font-medium mb-2 text-white">경기 유형</label>
             <select
               className="input-field"
               value={typeFilter}
@@ -356,7 +321,7 @@ const GamePage: React.FC = () => {
           </div>
         </div>
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">상대팀 검색</label>
+          <label className="block text-sm font-medium mb-2 text-white">상대팀 검색</label>
           <input
             type="text"
             className="input-field"
@@ -370,25 +335,25 @@ const GamePage: React.FC = () => {
         <div className="card mb-6 overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b">
-                <th className="text-left p-1.5 text-xs">경기수</th>
-                <th className="text-left p-1.5 text-xs">승리</th>
-                <th className="text-left p-1.5 text-xs">무</th>
-                <th className="text-left p-1.5 text-xs">패배</th>
-                <th className="text-left p-1.5 text-xs">득점</th>
-                <th className="text-left p-1.5 text-xs">실점</th>
-                <th className="text-left p-1.5 text-xs">득실차</th>
+              <tr className="border-b border-gray-700">
+                <th className="text-center p-1.5 text-xs text-white">경기수</th>
+                <th className="text-center p-1.5 text-xs text-white">승리</th>
+                <th className="text-center p-1.5 text-xs text-white">무</th>
+                <th className="text-center p-1.5 text-xs text-white">패배</th>
+                <th className="text-center p-1.5 text-xs text-white">득점</th>
+                <th className="text-center p-1.5 text-xs text-white">실점</th>
+                <th className="text-center p-1.5 text-xs text-white">득실차</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="p-1.5 font-bold text-xs">{stats.total}</td>
-                <td className="p-1.5 text-green-600 font-bold text-xs">{stats.wins}</td>
-                <td className="p-1.5 text-gray-600 font-bold text-xs">{stats.draws}</td>
-                <td className="p-1.5 text-red-600 font-bold text-xs">{stats.losses}</td>
-                <td className="p-1.5 font-bold text-xs">{stats.goalsFor}</td>
-                <td className="p-1.5 font-bold text-xs">{stats.goalsAgainst}</td>
-                <td className={`p-1.5 font-bold text-xs ${stats.goalDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <td className="p-1.5 font-bold text-xs text-white text-center">{stats.total}</td>
+                <td className="p-1.5 text-red-500 font-bold text-xs text-center">{stats.wins}</td>
+                <td className="p-1.5 text-red-500 font-bold text-xs text-center">{stats.draws}</td>
+                <td className="p-1.5 text-red-500 font-bold text-xs text-center">{stats.losses}</td>
+                <td className="p-1.5 font-bold text-xs text-white text-center">{stats.goalsFor}</td>
+                <td className="p-1.5 font-bold text-xs text-white text-center">{stats.goalsAgainst}</td>
+                <td className="p-1.5 font-bold text-xs text-white text-center">
                   {stats.goalDiff >= 0 ? '+' : ''}{stats.goalDiff}
                 </td>
               </tr>
@@ -396,69 +361,66 @@ const GamePage: React.FC = () => {
           </table>
         </div>
 
-        {/* 경기 리스트 */}
-        <div className="card overflow-x-auto">
-          <div className="space-y-2">
-            {filteredGames.map((game) => (
-              <div
-                key={game.id}
-                className="border-b border-gray-700 pb-2 hover:bg-gray-800 cursor-pointer transition-colors"
-                onClick={() => handleGameClick(game.id)}
-              >
-                {/* 첫 번째 줄: 날짜, 상대, 대회 */}
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    <span className="text-gray-400 whitespace-nowrap">{formatDate(game.date)}</span>
-                    <span className="font-semibold truncate text-white">{game.opponent}</span>
-                    <span className="text-gray-400 whitespace-nowrap">{game.type}</span>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex space-x-2 ml-2" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => handleEdit(game)}
-                        className="text-gold-600 hover:text-gold-700"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(game.id)}
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {/* 두 번째 줄: 스코어, 결과, 영상 */}
-                <div className="flex items-center space-x-3 text-sm">
-                  <span className="font-bold">
-                    {game.ourScore} : {game.opponentScore}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs ${
-                      game.result === '승리'
-                        ? 'bg-green-900 text-green-300'
-                        : game.result === '무승부'
-                        ? 'bg-gray-700 text-gray-300'
-                        : 'bg-red-900 text-red-300'
-                    }`}
+        {/* 경기별 일정 */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4 text-white">경기별 일정</h2>
+          <div className="card overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-700">
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">날짜</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">상대</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">스코어</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">결과</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">경기종류</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">유튜브</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGames.map((game) => (
+                  <tr
+                    key={game.id}
+                    className="border-b border-gray-700 hover:bg-gray-800 cursor-pointer transition-colors"
+                    onClick={() => handleGameClick(game.id)}
                   >
-                    {game.result}
-                  </span>
-                  {game.videoUrl && (
-                    <a
-                      href={game.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-gold-400 hover:text-gold-300"
-                    >
-                      <FilmIcon className="w-4 h-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+                    <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{formatDate(game.date)}</td>
+                    <td className="p-1.5 font-semibold text-white whitespace-nowrap text-center">{game.opponent}</td>
+                    <td className="p-1.5 font-bold text-white text-center whitespace-nowrap">
+                      {game.ourScore} : {game.opponentScore}
+                    </td>
+                    <td className="p-1.5 text-center whitespace-nowrap">
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-xs whitespace-nowrap ${
+                          game.result === '승리'
+                            ? 'bg-green-900 text-green-300'
+                            : game.result === '무승부'
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-red-900 text-red-300'
+                        }`}
+                      >
+                        {game.result}
+                      </span>
+                    </td>
+                    <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{game.type}</td>
+                    <td className="p-1.5 text-center whitespace-nowrap">
+                      {game.videoUrl ? (
+                        <a
+                          href={game.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-red-500 hover:text-red-400 inline-block"
+                        >
+                          <FilmIcon className="w-4 h-4" />
+                        </a>
+                      ) : (
+                        <span className="text-gray-600">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -468,13 +430,26 @@ const GamePage: React.FC = () => {
 
         {/* 모달 */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-gray-900 border border-gray-800 rounded-lg max-w-2xl w-full p-6 my-8">
-              <h2 className="text-2xl font-bold mb-4 text-white">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gray-900 border border-gray-800 rounded-lg max-w-2xl w-full p-6 mt-8 mb-8 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-6 text-white">
                 {editingGame ? '경기 수정' : '경기 추가'}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* 날짜 */}
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white">연도 *</label>
+                    <select
+                      required
+                      className="input-field"
+                      value={formData.year}
+                      onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    >
+                      <option value="2026">2026</option>
+                      <option value="2027">2027</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-white">날짜 *</label>
                     <input
@@ -485,42 +460,27 @@ const GamePage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-white">연령 그룹 *</label>
-                    <select
-                      required
-                      className="input-field"
-                      value={formData.ageGroup}
-                      onChange={(e) => setFormData({ ...formData, ageGroup: e.target.value })}
-                    >
-                      <option value="U12">U12</option>
-                      <option value="U11">U11</option>
-                      <option value="U10">U10</option>
-                      <option value="U9">U9</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-white">상대팀 *</label>
-                    <input
-                      type="text"
-                      required
-                      className="input-field"
-                      value={formData.opponent}
-                      onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-white">상대팀 로고</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="input-field"
-                      onChange={(e) => setFormData({ ...formData, opponentLogo: e.target.files?.[0] || null })}
-                    />
-                  </div>
+
+                {/* 연령 그룹 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">연령 그룹 *</label>
+                  <select
+                    required
+                    className="input-field"
+                    value={formData.ageGroup}
+                    onChange={(e) => setFormData({ ...formData, ageGroup: e.target.value as any })}
+                  >
+                    <option value="U12">U12</option>
+                    <option value="U11">U11</option>
+                    <option value="U10">U10</option>
+                    <option value="U9">U9</option>
+                    <option value="U8">U8</option>
+                    <option value="U7">U7</option>
+                  </select>
                 </div>
+
+                {/* 경기 유형 */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-white">경기 유형 *</label>
                   <select
@@ -535,8 +495,131 @@ const GamePage: React.FC = () => {
                     <option value="스토브리그">스토브리그</option>
                   </select>
                 </div>
+
+                {/* 상대팀명 */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-white">유튜브 링크</label>
+                  <label className="block text-sm font-medium mb-2 text-white">상대팀명 *</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    value={formData.opponent}
+                    onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
+                  />
+                </div>
+
+                {/* 총점 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white">우리팀 총점 *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      className="input-field"
+                      value={formData.ourScore}
+                      onChange={(e) => setFormData({ ...formData, ourScore: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white">상대팀 총점 *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      className="input-field"
+                      value={formData.opponentScore}
+                      onChange={(e) => setFormData({ ...formData, opponentScore: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white">결과 *</label>
+                    <select
+                      required
+                      className="input-field"
+                      value={formData.result}
+                      onChange={(e) => setFormData({ ...formData, result: e.target.value as any })}
+                    >
+                      <option value="승리">승리</option>
+                      <option value="무승부">무승부</option>
+                      <option value="패배">패배</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 쿼터별 점수 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">쿼터별 점수 (선택사항)</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(['q1', 'q2', 'q3', 'q4'] as const).map((q, index) => (
+                      <div key={q} className="bg-gray-800 rounded-lg p-4">
+                        <p className="text-sm text-gray-300 mb-3 font-semibold">{index + 1}쿼터</p>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">우리팀</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="input-field text-sm"
+                              value={formData.quarters[q].our}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  quarters: {
+                                    ...formData.quarters,
+                                    [q]: { ...formData.quarters[q], our: parseInt(e.target.value) || 0 },
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">상대팀</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="input-field text-sm"
+                              value={formData.quarters[q].opponent}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  quarters: {
+                                    ...formData.quarters,
+                                    [q]: { ...formData.quarters[q], opponent: parseInt(e.target.value) || 0 },
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">결과</label>
+                            <select
+                              className="input-field text-sm"
+                              value={formData.quarters[q].result}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  quarters: {
+                                    ...formData.quarters,
+                                    [q]: { ...formData.quarters[q], result: e.target.value as any },
+                                  },
+                                })
+                              }
+                            >
+                              <option value="승리">승리</option>
+                              <option value="무승부">무승부</option>
+                              <option value="패배">패배</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 유튜브 링크 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">유튜브 링크 (선택사항)</label>
                   <input
                     type="url"
                     className="input-field"
@@ -545,50 +628,10 @@ const GamePage: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">쿼터별 스코어</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {(['q1', 'q2', 'q3', 'q4'] as const).map((q) => (
-                      <div key={q} className="space-y-2">
-                        <label className="text-xs text-gray-300">{q.toUpperCase()}</label>
-                        <input
-                          type="number"
-                          min="0"
-                          className="input-field"
-                          placeholder="우리"
-                          value={formData.quarters[q].our}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              quarters: {
-                                ...formData.quarters,
-                                [q]: { ...formData.quarters[q], our: parseInt(e.target.value) || 0 },
-                              },
-                            })
-                          }
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          className="input-field"
-                          placeholder="상대"
-                          value={formData.quarters[q].opponent}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              quarters: {
-                                ...formData.quarters,
-                                [q]: { ...formData.quarters[q], opponent: parseInt(e.target.value) || 0 },
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+
+                {/* 버튼 */}
                 <div className="flex space-x-2">
-                  <button type="submit" className="btn-primary flex-1">저장</button>
+                  <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex-1">저장</button>
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}

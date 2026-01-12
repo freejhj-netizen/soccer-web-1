@@ -6,9 +6,7 @@ import { db, storage } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { MainContent, Schedule } from '../types';
 import { TextEditModal } from '../components/TextEditModal';
-import { PencilIcon } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { PencilIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 const Main: React.FC = () => {
   const { userData } = useAuth();
@@ -18,6 +16,7 @@ const Main: React.FC = () => {
   const [upcomingSchedules, setUpcomingSchedules] = useState<Schedule[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [countdowns, setCountdowns] = useState<{ [key: string]: { days: number; hours: number; minutes: number; seconds: number } }>({});
   
   // 모달 상태
   const [isClubIntroModalOpen, setIsClubIntroModalOpen] = useState(false);
@@ -48,6 +47,37 @@ const Main: React.FC = () => {
     fetchContent();
     fetchUpcomingSchedules();
   }, []);
+
+  // 카운트다운 업데이트
+  useEffect(() => {
+    const updateCountdowns = () => {
+      const now = new Date();
+      const newCountdowns: { [key: string]: { days: number; hours: number; minutes: number; seconds: number } } = {};
+      
+      upcomingSchedules.forEach((schedule) => {
+        const scheduleDate = schedule.dateTime.toDate ? schedule.dateTime.toDate() : new Date(schedule.dateTime);
+        const diff = scheduleDate.getTime() - now.getTime();
+        
+        if (diff > 0) {
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          
+          newCountdowns[schedule.id] = { days, hours, minutes, seconds };
+        } else {
+          newCountdowns[schedule.id] = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+        }
+      });
+      
+      setCountdowns(newCountdowns);
+    };
+
+    updateCountdowns();
+    const interval = setInterval(updateCountdowns, 1000);
+    
+    return () => clearInterval(interval);
+  }, [upcomingSchedules]);
 
   const fetchContent = async () => {
     if (!db) {
@@ -327,9 +357,11 @@ const Main: React.FC = () => {
 
   const formatDateTime = (dateTime: any) => {
     const date = dateTime.toDate ? dateTime.toDate() : new Date(dateTime);
+    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
     return {
-      date: format(date, 'yyyy.MM.dd', { locale: ko }),
-      time: format(date, 'HH:mm', { locale: ko }),
+      date: date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
+      weekday: weekdays[date.getDay()],
+      time: date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
     };
   };
 
@@ -598,7 +630,7 @@ const Main: React.FC = () => {
             onClick={() => setActiveTab('notice')}
             className={`px-8 py-4 text-lg font-semibold rounded-lg transition-colors ${
               activeTab === 'notice'
-                ? 'bg-gold text-black'
+                ? 'bg-blue-500 text-white'
                 : 'bg-gray-800 text-white hover:bg-gray-700'
             }`}
           >
@@ -608,7 +640,7 @@ const Main: React.FC = () => {
             onClick={() => setActiveTab('uniform')}
             className={`px-8 py-4 text-lg font-semibold rounded-lg transition-colors ${
               activeTab === 'uniform'
-                ? 'bg-gold text-black'
+                ? 'bg-blue-500 text-white'
                 : 'bg-gray-800 text-white hover:bg-gray-700'
             }`}
           >
@@ -686,32 +718,90 @@ const Main: React.FC = () => {
           </section>
 
           {/* 예정 일정 */}
-          <section className="mb-12">
-            <div className="card">
-              <h2 className="text-3xl font-bold mb-4 text-white">예정 일정</h2>
-              {upcomingSchedules.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {upcomingSchedules.map((schedule) => {
-                    const { date, time } = formatDateTime(schedule.dateTime);
-                    return (
-                      <div key={schedule.id} className="bg-gray-900 border-2 border-gold rounded-lg p-4">
-                        <h3 className="text-lg font-bold mb-2 text-gold">
-                          경기 {schedule.ageGroup} {schedule.homeAway}
-                        </h3>
-                        <p className="text-sm mb-1 whitespace-nowrap overflow-hidden text-ellipsis text-white">
-                          {schedule.opponent} vs NYJ BJ UTD U12
-                        </p>
-                        <p className="text-gray-300 text-sm">{date} {time}</p>
-                        <p className="text-sm text-gray-400 mt-2">{schedule.type}</p>
+          {upcomingSchedules.length > 0 && (
+            <section className="mb-12">
+              <h2 className="text-2xl font-bold mb-4 text-white">예정 일정</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {upcomingSchedules.map((schedule) => {
+                  const { date, weekday, time } = formatDateTime(schedule.dateTime);
+                  const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
+                  const location = (schedule as any).location || '장소 미정';
+                  const teamName = schedule.homeAway === 'HOME' 
+                    ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
+                    : `${schedule.opponent} vs NYJ BJ UTD U12`;
+                  
+                  return (
+                    <div key={schedule.id} className="card bg-gray-900 border-2 border-red-500 p-4">
+                      {/* 경기 레이블 */}
+                      <div className="mb-3">
+                        <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">경기</span>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-400">예정된 일정이 없습니다.</p>
-              )}
-            </div>
-          </section>
+                      
+                      {/* 팀명 vs 팀명 */}
+                      <p className="text-white font-bold mb-3">{teamName}</p>
+                      
+                      {/* 날짜/시간 */}
+                      <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
+                        <CalendarIcon className="w-4 h-4 text-blue-400" />
+                        <span>{date} {weekday}</span>
+                        <ClockIcon className="w-4 h-4 ml-2 text-gray-400" />
+                        <span>{time}</span>
+                      </div>
+                      
+                      {/* 위치 */}
+                      <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
+                        <MapPinIcon className="w-4 h-4 text-pink-400" />
+                        <span>{location}</span>
+                      </div>
+                      
+                      {/* 경기 종류 */}
+                      <div className="flex items-center space-x-2 mb-3 text-sm">
+                        <span className="text-lg">⚽</span>
+                        <span className="text-red-500">{schedule.type}</span>
+                      </div>
+                      
+                      {/* 구분선 */}
+                      <div className="border-t border-gray-700 my-3"></div>
+                      
+                      {/* 다가오는 경기 일정 */}
+                      <p className="text-center text-sm text-white mb-2">다가오는 경기 일정</p>
+                      
+                      {/* 카운트다운 */}
+                      <div className="flex justify-center items-center space-x-2">
+                        <div className="text-center">
+                          <div className="text-red-500 text-2xl font-bold">
+                            {String(countdown.days).padStart(2, '0')}
+                          </div>
+                          <div className="text-white text-xs">일</div>
+                        </div>
+                        <span className="text-red-500 text-xl">:</span>
+                        <div className="text-center">
+                          <div className="text-red-500 text-2xl font-bold">
+                            {String(countdown.hours).padStart(2, '0')}
+                          </div>
+                          <div className="text-white text-xs">시</div>
+                        </div>
+                        <span className="text-red-500 text-xl">:</span>
+                        <div className="text-center">
+                          <div className="text-red-500 text-2xl font-bold">
+                            {String(countdown.minutes).padStart(2, '0')}
+                          </div>
+                          <div className="text-white text-xs">분</div>
+                        </div>
+                        <span className="text-red-500 text-xl">:</span>
+                        <div className="text-center">
+                          <div className="text-red-500 text-2xl font-bold">
+                            {String(countdown.seconds).padStart(2, '0')}
+                          </div>
+                          <div className="text-white text-xs">초</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
@@ -719,16 +809,16 @@ const Main: React.FC = () => {
       {activeTab === 'uniform' && (
         <section className="mb-12">
           <div className="card">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-8">
               {/* HOME 유니폼 */}
               <div className="relative">
-                <div className="text-gold text-sm font-semibold mb-2">HOME</div>
+                <div className="text-red-500 text-sm font-semibold mb-2">HOME</div>
                 {content?.uniform?.home ? (
                   <div className="relative group">
                     <img
                       src={content.uniform.home}
                       alt="HOME 유니폼"
-                      className="w-full aspect-[3/4] object-cover rounded-lg"
+                      className="w-full h-auto object-contain rounded-lg"
                     />
                     {isAdmin && (
                       <button
@@ -740,7 +830,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="aspect-[3/4] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -754,13 +844,13 @@ const Main: React.FC = () => {
 
               {/* AWAY 유니폼 */}
               <div className="relative">
-                <div className="text-gold text-sm font-semibold mb-2">AWAY</div>
+                <div className="text-red-500 text-sm font-semibold mb-2">AWAY</div>
                 {content?.uniform?.away ? (
                   <div className="relative group">
                     <img
                       src={content.uniform.away}
                       alt="AWAY 유니폼"
-                      className="w-full aspect-[3/4] object-cover rounded-lg"
+                      className="w-full h-auto object-contain rounded-lg"
                     />
                     {isAdmin && (
                       <button
@@ -772,7 +862,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="aspect-[3/4] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -786,13 +876,13 @@ const Main: React.FC = () => {
 
               {/* THIRD 유니폼 */}
               <div className="relative">
-                <div className="text-gold text-sm font-semibold mb-2">THIRD</div>
+                <div className="text-red-500 text-sm font-semibold mb-2">THIRD</div>
                 {content?.uniform?.third ? (
                   <div className="relative group">
                     <img
                       src={content.uniform.third}
                       alt="THIRD 유니폼"
-                      className="w-full aspect-[3/4] object-cover rounded-lg"
+                      className="w-full h-auto object-contain rounded-lg"
                     />
                     {isAdmin && (
                       <button
@@ -804,7 +894,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="aspect-[3/4] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
