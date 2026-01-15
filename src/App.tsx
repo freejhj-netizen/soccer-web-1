@@ -13,9 +13,7 @@ import Player from './pages/Player';
 import Calendar from './pages/Calendar';
 import Game from './pages/Game';
 import GameDetail from './pages/GameDetail';
-import GameEdit from './pages/GameEdit';
 import Notice from './pages/Notice';
-import Free from './pages/Free';
 import PostDetail from './pages/PostDetail';
 import Setting from './pages/Setting';
 import Admin from './pages/Admin';
@@ -102,16 +100,6 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route
-        path="/game/:id/edit"
-        element={
-          <ProtectedRoute requiredRole={['admin']}>
-            <Layout>
-              <GameEdit />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/notice"
         element={
           <ProtectedRoute>
@@ -123,26 +111,6 @@ const AppRoutes: React.FC = () => {
       />
       <Route
         path="/notice/:id"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <PostDetail />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/free"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Free />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/free/:id"
         element={
           <ProtectedRoute>
             <Layout>

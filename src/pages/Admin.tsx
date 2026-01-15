@@ -8,8 +8,10 @@ import ProtectedRoute from '../components/ProtectedRoute';
 const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -33,16 +35,28 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleRoleChange = async (uid: string, newRole: UserRole) => {
-    if (!db) return;
+  const handleUserClick = (user: User) => {
+    if (expandedUser === user.uid) {
+      setExpandedUser(null);
+      setSelectedUser(null);
+      setSelectedRole(null);
+    } else {
+      setExpandedUser(user.uid);
+      setSelectedUser(user);
+      setSelectedRole(user.role);
+    }
+  };
+
+  const handleSaveRole = async () => {
+    if (!selectedUser || !selectedRole || !db) return;
+    
     try {
-      await updateDoc(doc(db, 'users', uid), {
-        role: newRole,
+      await updateDoc(doc(db, 'users', selectedUser.uid), {
+        role: selectedRole,
       });
       fetchUsers();
-      if (selectedUser?.uid === uid) {
-        setSelectedUser({ ...selectedUser, role: newRole });
-      }
+      setSelectedUser({ ...selectedUser, role: selectedRole });
+      alert('권한이 변경되었습니다.');
     } catch (error) {
       console.error('Error updating role:', error);
       alert('권한 변경에 실패했습니다.');
@@ -127,17 +141,15 @@ const Admin: React.FC = () => {
       <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
         <h1 className="text-3xl font-bold mb-8 text-white">계정 관리</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 계정 목록 */}
-          <div className="card">
-            <h2 className="text-xl font-bold mb-4 text-white">계정 목록</h2>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {users.map((user) => (
+        <div className="card">
+          <h2 className="text-xl font-bold mb-4 text-white">계정 목록</h2>
+          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            {users.map((user) => (
+              <div key={user.uid}>
                 <div
-                  key={user.uid}
-                  onClick={() => setSelectedUser(user)}
+                  onClick={() => handleUserClick(user)}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedUser?.uid === user.uid
+                    expandedUser === user.uid
                       ? 'border-gold-500 bg-gray-800'
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
@@ -155,84 +167,77 @@ const Admin: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 계정 관리 */}
-          <div className="card">
-            <h2 className="text-xl font-bold mb-4 text-white">계정 관리</h2>
-            {selectedUser ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">이메일</label>
-                  <input
-                    type="email"
-                    disabled
-                    className="input-field bg-gray-800"
-                    value={selectedUser.email}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">권한</label>
-                  <div className="space-y-2 mb-4">
-                    {(['admin', 'member', 'guest'] as UserRole[]).map((role) => (
-                      <label key={role} className="flex items-center space-x-2 text-white">
+                
+                {/* 계정 관리 메뉴 */}
+                {expandedUser === user.uid && (
+                  <div className="mt-2 p-4 border border-gray-700 rounded-lg bg-gray-800">
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">이메일</label>
                         <input
-                          type="radio"
-                          name="role"
-                          checked={selectedUser.role === role}
-                          onChange={() => {
-                            setSelectedUser({ ...selectedUser, role });
-                          }}
-                          className="w-4 h-4 text-gold-500"
+                          type="email"
+                          disabled
+                          className="input-field bg-gray-700"
+                          value={user.email}
                         />
-                        <span>{getRoleLabel(role)}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => handleRoleChange(selectedUser.uid, selectedUser.role)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors w-full"
-                  >
-                    권한 저장
-                  </button>
-                </div>
+                      </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">비밀번호 초기화</label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="password"
-                      className="input-field flex-1"
-                      placeholder="새 비밀번호 입력"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                    <button onClick={handlePasswordReset} className="btn-primary">
-                      초기화
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    비밀번호 초기화는 Firebase Admin SDK가 필요합니다.
-                  </p>
-                </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">권한</label>
+                        <div className="space-y-2">
+                          {(['admin', 'member', 'guest'] as UserRole[]).map((role) => (
+                            <label key={role} className="flex items-center space-x-2 text-white">
+                              <input
+                                type="radio"
+                                name={`role-${user.uid}`}
+                                checked={selectedRole === role}
+                                onChange={() => setSelectedRole(role)}
+                                className="w-4 h-4 text-gold-500"
+                              />
+                              <span>{getRoleLabel(role)}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <button
+                          onClick={handleSaveRole}
+                          className="mt-3 bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                        >
+                          저장
+                        </button>
+                      </div>
 
-                <div>
-                  <button
-                    onClick={() => handleDeleteUser(selectedUser.uid)}
-                    className="btn-secondary bg-red-600 hover:bg-red-700 w-full"
-                  >
-                    회원 탈퇴
-                  </button>
-                </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">비밀번호 초기화</label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="password"
+                            className="input-field flex-1"
+                            placeholder="새 비밀번호 입력"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                          />
+                          <button onClick={handlePasswordReset} className="btn-primary">
+                            초기화
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">
+                          비밀번호 초기화는 Firebase Admin SDK가 필요합니다.
+                        </p>
+                      </div>
+
+                      <div>
+                        <button
+                          onClick={() => handleDeleteUser(user.uid)}
+                          className="btn-secondary bg-red-600 hover:bg-red-700 w-full"
+                        >
+                          회원 탈퇴
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="text-center text-gray-400 py-12">
-                왼쪽에서 계정을 선택하세요.
-              </div>
-            )}
+            ))}
           </div>
         </div>
       </div>

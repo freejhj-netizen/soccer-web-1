@@ -53,7 +53,7 @@ const GameDetail: React.FC = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/game?edit=${id}`);
+    navigate(`/game/${id}/edit`);
   };
 
   const handleDelete = async () => {
@@ -208,3 +208,4 @@ const GameDetail: React.FC = () => {
 };
 
 export default GameDetail;
+

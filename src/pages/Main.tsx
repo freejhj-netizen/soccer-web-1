@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { MainContent, Schedule } from '../types';
 import { TextEditModal } from '../components/TextEditModal';
 import { PencilIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 const Main: React.FC = () => {
   const { userData } = useAuth();
@@ -48,7 +50,7 @@ const Main: React.FC = () => {
     fetchUpcomingSchedules();
   }, []);
 
-  // 카운트다운 업데이트
+  // 카운트다운 타이머 업데이트
   useEffect(() => {
     const updateCountdowns = () => {
       const now = new Date();
@@ -75,7 +77,7 @@ const Main: React.FC = () => {
 
     updateCountdowns();
     const interval = setInterval(updateCountdowns, 1000);
-    
+
     return () => clearInterval(interval);
   }, [upcomingSchedules]);
 
@@ -183,22 +185,35 @@ const Main: React.FC = () => {
   const fetchUpcomingSchedules = async () => {
     if (!db) return;
     try {
-      const now = new Date();
-      const q = query(
-        collection(db, 'schedules'),
-        where('dateTime', '>=', now),
-        orderBy('dateTime', 'asc')
-      );
+      const q = query(collection(db, 'schedules'), orderBy('dateTime', 'asc'));
       const querySnapshot = await getDocs(q);
       const schedules = querySnapshot.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Schedule[];
-      setUpcomingSchedules(schedules.slice(0, 2));
+
+      // 가장 가까운 2개 일정
+      const now = new Date();
+      const upcoming = schedules
+        .filter((s) => {
+          const scheduleDate = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
+          return scheduleDate >= now;
+        })
+        .slice(0, 2);
+      setUpcomingSchedules(upcoming);
     } catch (error) {
       console.error('Error fetching upcoming schedules:', error);
     }
+  };
+
+  const formatDateTime = (dateTime: any) => {
+    const date = dateTime.toDate ? dateTime.toDate() : new Date(dateTime);
+    return {
+      date: format(date, 'yyyy.MM.dd', { locale: ko }),
+      weekday: format(date, 'EEE', { locale: ko }),
+      time: format(date, 'HH:mm', { locale: ko }),
+    };
   };
 
   const handleClubIntroSave = async (title: string, _subtitle: string, contentHtml: string) => {
@@ -355,15 +370,6 @@ const Main: React.FC = () => {
     }
   };
 
-  const formatDateTime = (dateTime: any) => {
-    const date = dateTime.toDate ? dateTime.toDate() : new Date(dateTime);
-    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-    return {
-      date: date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
-      weekday: weekdays[date.getDay()],
-      time: date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-    };
-  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -720,80 +726,78 @@ const Main: React.FC = () => {
           {/* 예정 일정 */}
           {upcomingSchedules.length > 0 && (
             <section className="mb-12">
-              <h2 className="text-2xl font-bold mb-4 text-white">예정 일정</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h2 className="text-2xl font-bold mb-4 text-white">다가오는 일정</h2>
+              <div className="space-y-4">
                 {upcomingSchedules.map((schedule) => {
                   const { date, weekday, time } = formatDateTime(schedule.dateTime);
-                  const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                   const location = (schedule as any).location || '장소 미정';
                   const teamName = schedule.homeAway === 'HOME' 
                     ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
                     : `${schedule.opponent} vs NYJ BJ UTD U12`;
+                  const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                   
                   return (
-                    <div key={schedule.id} className="card bg-gray-900 border-2 border-red-500 p-4">
-                      {/* 경기 레이블 */}
-                      <div className="mb-3">
-                        <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">경기</span>
+                    <div key={schedule.id} className="bg-gray-800 border border-red-500 rounded-lg p-6 relative">
+                      {/* 경기 라벨 */}
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-red-500 text-white px-3 py-1 rounded text-sm font-semibold">경기</span>
                       </div>
                       
-                      {/* 팀명 vs 팀명 */}
-                      <p className="text-white font-bold mb-3">{teamName}</p>
-                      
-                      {/* 날짜/시간 */}
-                      <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
-                        <CalendarIcon className="w-4 h-4 text-blue-400" />
-                        <span>{date} {weekday}</span>
-                        <ClockIcon className="w-4 h-4 ml-2 text-gray-400" />
-                        <span>{time}</span>
+                      {/* 제목 */}
+                      <div className="mt-8 mb-4">
+                        <h3 className="text-base font-bold text-white leading-tight whitespace-nowrap">
+                          {teamName}
+                        </h3>
                       </div>
                       
-                      {/* 위치 */}
-                      <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
-                        <MapPinIcon className="w-4 h-4 text-pink-400" />
-                        <span>{location}</span>
-                      </div>
-                      
-                      {/* 경기 종류 */}
-                      <div className="flex items-center space-x-2 mb-3 text-sm">
-                        <span className="text-lg">⚽</span>
-                        <span className="text-red-500">{schedule.type}</span>
+                      {/* 날짜/시간, 위치, 경기 종류 */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <CalendarIcon className="w-4 h-4" />
+                          <span>{date} {weekday}</span>
+                          <ClockIcon className="w-4 h-4 ml-2" />
+                          <span>{time}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <MapPinIcon className="w-4 h-4" />
+                          <span>{location}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <span className="text-lg">⚽</span>
+                          <span className="text-red-500">{schedule.type}</span>
+                        </div>
                       </div>
                       
                       {/* 구분선 */}
-                      <div className="border-t border-gray-700 my-3"></div>
-                      
-                      {/* 다가오는 경기 일정 */}
-                      <p className="text-center text-sm text-white mb-2">다가오는 경기 일정</p>
+                      <div className="border-t border-gray-700 my-4"></div>
                       
                       {/* 카운트다운 */}
-                      <div className="flex justify-center items-center space-x-2">
-                        <div className="text-center">
-                          <div className="text-red-500 text-2xl font-bold">
+                      <div className="text-center">
+                        <p className="text-sm text-white mb-2">다가오는 경기 일정</p>
+                        {/* 첫 번째 줄: 숫자와 콜론 */}
+                        <div className="flex items-center justify-center space-x-1 mb-1">
+                          <span className="text-2xl font-bold text-red-500">
                             {String(countdown.days).padStart(2, '0')}
-                          </div>
-                          <div className="text-white text-xs">일</div>
-                        </div>
-                        <span className="text-red-500 text-xl">:</span>
-                        <div className="text-center">
-                          <div className="text-red-500 text-2xl font-bold">
+                          </span>
+                          <span className="text-2xl font-bold text-red-500">:</span>
+                          <span className="text-2xl font-bold text-red-500">
                             {String(countdown.hours).padStart(2, '0')}
-                          </div>
-                          <div className="text-white text-xs">시</div>
-                        </div>
-                        <span className="text-red-500 text-xl">:</span>
-                        <div className="text-center">
-                          <div className="text-red-500 text-2xl font-bold">
+                          </span>
+                          <span className="text-2xl font-bold text-red-500">:</span>
+                          <span className="text-2xl font-bold text-red-500">
                             {String(countdown.minutes).padStart(2, '0')}
-                          </div>
-                          <div className="text-white text-xs">분</div>
-                        </div>
-                        <span className="text-red-500 text-xl">:</span>
-                        <div className="text-center">
-                          <div className="text-red-500 text-2xl font-bold">
+                          </span>
+                          <span className="text-2xl font-bold text-red-500">:</span>
+                          <span className="text-2xl font-bold text-red-500">
                             {String(countdown.seconds).padStart(2, '0')}
-                          </div>
-                          <div className="text-white text-xs">초</div>
+                          </span>
+                        </div>
+                        {/* 두 번째 줄: 라벨만 */}
+                        <div className="flex items-center justify-center space-x-8 text-xs text-white">
+                          <span>일</span>
+                          <span>시</span>
+                          <span>분</span>
+                          <span>초</span>
                         </div>
                       </div>
                     </div>
@@ -809,16 +813,16 @@ const Main: React.FC = () => {
       {activeTab === 'uniform' && (
         <section className="mb-12">
           <div className="card">
-            <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* HOME 유니폼 */}
-              <div className="relative">
-                <div className="text-red-500 text-sm font-semibold mb-2">HOME</div>
+              <div className="flex flex-col">
+                <span className="text-red-500 text-lg font-bold mb-0">HOME</span>
                 {content?.uniform?.home ? (
-                  <div className="relative group">
+                  <div className="relative group mt-0">
                     <img
                       src={content.uniform.home}
                       alt="HOME 유니폼"
-                      className="w-full h-auto object-contain rounded-lg"
+                      className="w-full object-contain bg-gray-800"
                     />
                     {isAdmin && (
                       <button
@@ -830,7 +834,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
                     <input
                       type="file"
                       accept="image/*"
@@ -843,14 +847,14 @@ const Main: React.FC = () => {
               </div>
 
               {/* AWAY 유니폼 */}
-              <div className="relative">
-                <div className="text-red-500 text-sm font-semibold mb-2">AWAY</div>
+              <div className="flex flex-col">
+                <span className="text-red-500 text-lg font-bold mb-0">AWAY</span>
                 {content?.uniform?.away ? (
-                  <div className="relative group">
+                  <div className="relative group mt-0">
                     <img
                       src={content.uniform.away}
                       alt="AWAY 유니폼"
-                      className="w-full h-auto object-contain rounded-lg"
+                      className="w-full object-contain bg-gray-800"
                     />
                     {isAdmin && (
                       <button
@@ -862,7 +866,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
                     <input
                       type="file"
                       accept="image/*"
@@ -875,14 +879,14 @@ const Main: React.FC = () => {
               </div>
 
               {/* THIRD 유니폼 */}
-              <div className="relative">
-                <div className="text-red-500 text-sm font-semibold mb-2">THIRD</div>
+              <div className="flex flex-col">
+                <span className="text-red-500 text-lg font-bold mb-0">THIRD</span>
                 {content?.uniform?.third ? (
-                  <div className="relative group">
+                  <div className="relative group mt-0">
                     <img
                       src={content.uniform.third}
                       alt="THIRD 유니폼"
-                      className="w-full h-auto object-contain rounded-lg"
+                      className="w-full object-contain bg-gray-800"
                     />
                     {isAdmin && (
                       <button
@@ -894,7 +898,7 @@ const Main: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <label className="min-h-[200px] border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors">
+                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
                     <input
                       type="file"
                       accept="image/*"

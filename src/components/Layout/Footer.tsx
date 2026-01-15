@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
             <h3 className="text-gold-500 font-bold text-lg mb-4">소셜 미디어</h3>
             <div className="space-y-2 text-sm">
               <p>클럽 인스타: <a href="https://instagram.com/nyj_bj_united" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline">@nyj_bj_united</a></p>
-              <p>클럽 유튜브: <a href="https://www.youtube.com/@nyjbjutd_footballclub" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline">@nyjbjutd_footballclub</a></p>
+              <p>클럽 유튜브: <a href="https://youtube.com/@nyjbjfc_footballclub" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline">@nyjbjfc_footballclub</a></p>
             </div>
           </div>
           <div>

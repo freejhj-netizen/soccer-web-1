@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +10,7 @@ import { PlusIcon, FilmIcon } from '@heroicons/react/24/outline';
 const GamePage: React.FC = () => {
   const { userData } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,17 +34,17 @@ const GamePage: React.FC = () => {
   const [formData, setFormData] = useState({
     date: '',
     year: '2026',
-    ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+    ageGroup: 'U10' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
     type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
     opponent: '',
     ourScore: 0,
     opponentScore: 0,
-    result: '승리' as '승리' | '무승부' | '패배',
+    result: '승리' as '승리' | '무승부' | '패배' | '미진행',
     quarters: {
-      q1: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-      q2: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-      q3: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-      q4: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+      q1: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+      q2: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+      q3: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+      q4: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
     },
     videoUrl: '',
   });
@@ -53,6 +54,19 @@ const GamePage: React.FC = () => {
   useEffect(() => {
     fetchGames();
   }, []);
+
+  useEffect(() => {
+    // URL 파라미터에서 edit ID 확인
+    const editId = searchParams.get('edit');
+    if (editId && games.length > 0) {
+      const gameToEdit = games.find(g => g.id === editId);
+      if (gameToEdit) {
+        handleEdit(gameToEdit);
+        // URL에서 edit 파라미터 제거
+        setSearchParams({});
+      }
+    }
+  }, [games, searchParams]);
 
   useEffect(() => {
     filterGames();
@@ -121,13 +135,6 @@ const GamePage: React.FC = () => {
       );
     }
 
-    // 날짜 내림차순 정렬 (최근 경기가 위로)
-    filtered.sort((a, b) => {
-      const dateA = a.date.toDate ? a.date.toDate() : new Date(a.date);
-      const dateB = b.date.toDate ? b.date.toDate() : new Date(b.date);
-      return dateB.getTime() - dateA.getTime();
-    });
-
     setFilteredGames(filtered);
   };
 
@@ -169,26 +176,68 @@ const GamePage: React.FC = () => {
     setFormData({
       date: '',
       year: '2026',
-      ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+      ageGroup: 'U10' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
       type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
       opponent: '',
       ourScore: 0,
       opponentScore: 0,
-      result: '승리' as '승리' | '무승부' | '패배',
+      result: '승리' as '승리' | '무승부' | '패배' | '미진행',
       quarters: {
-        q1: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-        q2: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-        q3: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
-        q4: { our: 0, opponent: 0, result: '승리' as '승리' | '무승부' | '패배' },
+        q1: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q2: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q3: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q4: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
       },
       videoUrl: '',
     });
     setShowModal(true);
   };
 
-  // 관리자 기능 (나중에 사용 가능)
-  // const handleEdit = (game: Game) => { ... }
-  // const handleDelete = async (id: string) => { ... }
+  const handleEdit = (game: Game) => {
+    setEditingGame(game);
+    const date = game.date.toDate ? game.date.toDate() : new Date(game.date);
+    const quarters = game.quarters || {
+      q1: { our: 0, opponent: 0 },
+      q2: { our: 0, opponent: 0 },
+      q3: { our: 0, opponent: 0 },
+      q4: { our: 0, opponent: 0 },
+    };
+    setFormData({
+      date: date.toISOString().slice(0, 10),
+      year: date.getFullYear().toString(),
+      ageGroup: (game.ageGroup as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7') || 'U10',
+      type: game.type,
+      opponent: game.opponent,
+      ourScore: game.ourScore,
+      opponentScore: game.opponentScore,
+      result: (game.result as '승리' | '무승부' | '패배' | '미진행') || '승리',
+      quarters: {
+        q1: { 
+          our: quarters.q1?.our !== undefined && quarters.q1.our !== null ? quarters.q1.our : '', 
+          opponent: quarters.q1?.opponent !== undefined && quarters.q1.opponent !== null ? quarters.q1.opponent : '', 
+          result: (quarters.q1 as any)?.result || '승리' 
+        },
+        q2: { 
+          our: quarters.q2?.our !== undefined && quarters.q2.our !== null ? quarters.q2.our : '', 
+          opponent: quarters.q2?.opponent !== undefined && quarters.q2.opponent !== null ? quarters.q2.opponent : '', 
+          result: (quarters.q2 as any)?.result || '승리' 
+        },
+        q3: { 
+          our: quarters.q3?.our !== undefined && quarters.q3.our !== null ? quarters.q3.our : '', 
+          opponent: quarters.q3?.opponent !== undefined && quarters.q3.opponent !== null ? quarters.q3.opponent : '', 
+          result: (quarters.q3 as any)?.result || '승리' 
+        },
+        q4: { 
+          our: quarters.q4?.our !== undefined && quarters.q4.our !== null ? quarters.q4.our : '', 
+          opponent: quarters.q4?.opponent !== undefined && quarters.q4.opponent !== null ? quarters.q4.opponent : '', 
+          result: (quarters.q4 as any)?.result || '승리' 
+        },
+      },
+      videoUrl: game.videoUrl || '',
+    });
+    setShowModal(true);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,15 +254,32 @@ const GamePage: React.FC = () => {
         date: gameDate,
         ageGroup: formData.ageGroup,
         opponent: formData.opponent,
+        opponentLogoUrl: editingGame?.opponentLogoUrl || '',
         ourScore: formData.ourScore,
         opponentScore: formData.opponentScore,
         result: formData.result,
         type: formData.type,
         quarters: {
-          q1: { our: formData.quarters.q1.our, opponent: formData.quarters.q1.opponent },
-          q2: { our: formData.quarters.q2.our, opponent: formData.quarters.q2.opponent },
-          q3: { our: formData.quarters.q3.our, opponent: formData.quarters.q3.opponent },
-          q4: { our: formData.quarters.q4.our, opponent: formData.quarters.q4.opponent },
+          q1: { 
+            our: formData.quarters.q1.our === '' ? 0 : (typeof formData.quarters.q1.our === 'number' ? formData.quarters.q1.our : parseInt(String(formData.quarters.q1.our)) || 0), 
+            opponent: formData.quarters.q1.opponent === '' ? 0 : (typeof formData.quarters.q1.opponent === 'number' ? formData.quarters.q1.opponent : parseInt(String(formData.quarters.q1.opponent)) || 0),
+            result: formData.quarters.q1.result
+          },
+          q2: { 
+            our: formData.quarters.q2.our === '' ? 0 : (typeof formData.quarters.q2.our === 'number' ? formData.quarters.q2.our : parseInt(String(formData.quarters.q2.our)) || 0), 
+            opponent: formData.quarters.q2.opponent === '' ? 0 : (typeof formData.quarters.q2.opponent === 'number' ? formData.quarters.q2.opponent : parseInt(String(formData.quarters.q2.opponent)) || 0),
+            result: formData.quarters.q2.result
+          },
+          q3: { 
+            our: formData.quarters.q3.our === '' ? 0 : (typeof formData.quarters.q3.our === 'number' ? formData.quarters.q3.our : parseInt(String(formData.quarters.q3.our)) || 0), 
+            opponent: formData.quarters.q3.opponent === '' ? 0 : (typeof formData.quarters.q3.opponent === 'number' ? formData.quarters.q3.opponent : parseInt(String(formData.quarters.q3.opponent)) || 0),
+            result: formData.quarters.q3.result
+          },
+          q4: { 
+            our: formData.quarters.q4.our === '' ? 0 : (typeof formData.quarters.q4.our === 'number' ? formData.quarters.q4.our : parseInt(String(formData.quarters.q4.our)) || 0), 
+            opponent: formData.quarters.q4.opponent === '' ? 0 : (typeof formData.quarters.q4.opponent === 'number' ? formData.quarters.q4.opponent : parseInt(String(formData.quarters.q4.opponent)) || 0),
+            result: formData.quarters.q4.result
+          },
         },
         videoUrl: formData.videoUrl,
         createdAt: editingGame?.createdAt || new Date(),
@@ -260,19 +326,20 @@ const GamePage: React.FC = () => {
         {/* 필터 */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium mb-2 text-white">시즌</label>
+            <label className="block text-sm font-medium mb-2">시즌</label>
             <select
               className="input-field"
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
             >
               <option value="전체">전체</option>
-              <option value="2027">2027</option>
-              <option value="2026">2026</option>
+              <option value="2026">2026년</option>
+              <option value="2027">2027년</option>
+              <option value="2028">2028년</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2 text-white">시작일</label>
+            <label className="block text-sm font-medium mb-2">시작일</label>
             <input
               type="date"
               className="input-field"
@@ -281,7 +348,7 @@ const GamePage: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2 text-white">종료일</label>
+            <label className="block text-sm font-medium mb-2">종료일</label>
             <input
               type="date"
               className="input-field"
@@ -372,8 +439,9 @@ const GamePage: React.FC = () => {
                   <th className="text-center p-1.5 text-white whitespace-nowrap">상대</th>
                   <th className="text-center p-1.5 text-white whitespace-nowrap">스코어</th>
                   <th className="text-center p-1.5 text-white whitespace-nowrap">결과</th>
-                  <th className="text-center p-1.5 text-white whitespace-nowrap">경기종류</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">연령</th>
                   <th className="text-center p-1.5 text-white whitespace-nowrap">유튜브</th>
+                  <th className="text-center p-1.5 text-white whitespace-nowrap">경기종류</th>
                 </tr>
               </thead>
               <tbody>
@@ -401,7 +469,7 @@ const GamePage: React.FC = () => {
                         {game.result}
                       </span>
                     </td>
-                    <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{game.type}</td>
+                    <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{game.ageGroup}</td>
                     <td className="p-1.5 text-center whitespace-nowrap">
                       {game.videoUrl ? (
                         <a
@@ -417,6 +485,7 @@ const GamePage: React.FC = () => {
                         <span className="text-gray-600">-</span>
                       )}
                     </td>
+                    <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{game.type}</td>
                   </tr>
                 ))}
               </tbody>
@@ -446,8 +515,9 @@ const GamePage: React.FC = () => {
                       value={formData.year}
                       onChange={(e) => setFormData({ ...formData, year: e.target.value })}
                     >
-                      <option value="2026">2026</option>
-                      <option value="2027">2027</option>
+                      <option value="2026">2026년</option>
+                      <option value="2027">2027년</option>
+                      <option value="2028">2028년</option>
                     </select>
                   </div>
                   <div>
@@ -543,6 +613,7 @@ const GamePage: React.FC = () => {
                       <option value="승리">승리</option>
                       <option value="무승부">무승부</option>
                       <option value="패배">패배</option>
+                      <option value="미진행">미진행</option>
                     </select>
                   </div>
                 </div>
@@ -561,13 +632,13 @@ const GamePage: React.FC = () => {
                               type="number"
                               min="0"
                               className="input-field text-sm"
-                              value={formData.quarters[q].our}
+                              value={formData.quarters[q].our === '' ? '' : formData.quarters[q].our}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
                                   quarters: {
                                     ...formData.quarters,
-                                    [q]: { ...formData.quarters[q], our: parseInt(e.target.value) || 0 },
+                                    [q]: { ...formData.quarters[q], our: e.target.value === '' ? '' : parseInt(e.target.value) || '' },
                                   },
                                 })
                               }
@@ -579,13 +650,13 @@ const GamePage: React.FC = () => {
                               type="number"
                               min="0"
                               className="input-field text-sm"
-                              value={formData.quarters[q].opponent}
+                              value={formData.quarters[q].opponent === '' ? '' : formData.quarters[q].opponent}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
                                   quarters: {
                                     ...formData.quarters,
-                                    [q]: { ...formData.quarters[q], opponent: parseInt(e.target.value) || 0 },
+                                    [q]: { ...formData.quarters[q], opponent: e.target.value === '' ? '' : parseInt(e.target.value) || '' },
                                   },
                                 })
                               }
@@ -609,6 +680,7 @@ const GamePage: React.FC = () => {
                               <option value="승리">승리</option>
                               <option value="무승부">무승부</option>
                               <option value="패배">패배</option>
+                              <option value="미진행">미진행</option>
                             </select>
                           </div>
                         </div>

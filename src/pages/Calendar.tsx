@@ -40,7 +40,7 @@ const Calendar: React.FC = () => {
   }, [schedules, yearFilter, typeFilter, ageFilter]);
 
   useEffect(() => {
-    // 카운트다운 업데이트
+    // 카운트다운 타이머 업데이트
     const updateCountdowns = () => {
       const now = new Date();
       const newCountdowns: { [key: string]: { days: number; hours: number; minutes: number; seconds: number } } = {};
@@ -66,7 +66,7 @@ const Calendar: React.FC = () => {
 
     updateCountdowns();
     const interval = setInterval(updateCountdowns, 1000);
-    
+
     return () => clearInterval(interval);
   }, [upcomingSchedules]);
 
@@ -103,7 +103,6 @@ const Calendar: React.FC = () => {
 
   const filterSchedules = () => {
     let filtered = [...schedules];
-    const now = new Date();
 
     if (yearFilter !== '전체') {
       const year = parseInt(yearFilter);
@@ -121,35 +120,30 @@ const Calendar: React.FC = () => {
       filtered = filtered.filter((s) => s.ageGroup === ageFilter);
     }
 
-    // 지나간 일정과 남아있는 일정 분리 (시간까지 고려)
+    // 정렬: 미래 일정은 내림차순(가장 늦은 날짜가 위), 과거 일정은 오름차순(가장 오래된 날짜가 아래)
+    const now = new Date();
+    const futureSchedules = filtered.filter((s) => {
+      const date = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
+      return date >= now;
+    }).sort((a, b) => {
+      const dateA = a.dateTime.toDate ? a.dateTime.toDate() : new Date(a.dateTime);
+      const dateB = b.dateTime.toDate ? b.dateTime.toDate() : new Date(b.dateTime);
+      return dateB.getTime() - dateA.getTime(); // 내림차순
+    });
+
     const pastSchedules = filtered.filter((s) => {
       const date = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
-      return date.getTime() < now.getTime();
-    });
-
-    const upcomingSchedules = filtered.filter((s) => {
-      const date = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
-      return date.getTime() >= now.getTime();
-    });
-
-    // 남아있는 일정: 날짜 오름차순 (가장 먼저 올 일정이 위로)
-    upcomingSchedules.sort((a, b) => {
+      return date < now;
+    }).sort((a, b) => {
       const dateA = a.dateTime.toDate ? a.dateTime.toDate() : new Date(a.dateTime);
       const dateB = b.dateTime.toDate ? b.dateTime.toDate() : new Date(b.dateTime);
-      return dateA.getTime() - dateB.getTime();
+      return dateA.getTime() - dateB.getTime(); // 오름차순
     });
 
-    // 지나간 일정: 날짜 내림차순 (가장 최근에 지나간 일정이 위로, 가장 오래된 일정이 밑으로)
-    pastSchedules.sort((a, b) => {
-      const dateA = a.dateTime.toDate ? a.dateTime.toDate() : new Date(a.dateTime);
-      const dateB = b.dateTime.toDate ? b.dateTime.toDate() : new Date(b.dateTime);
-      return dateB.getTime() - dateA.getTime(); // 내림차순 (가장 최근 일정이 위로, 가장 오래된 일정이 밑으로)
-    });
+    // 미래 일정 + 과거 일정 순서로 합치기
+    filtered = [...futureSchedules, ...pastSchedules];
 
-    // 최종 정렬: 남아있는 일정들 + 지나간 일정들
-    const sorted = [...upcomingSchedules, ...pastSchedules];
-
-    setFilteredSchedules(sorted);
+    setFilteredSchedules(filtered);
     setPage(1);
   };
 
@@ -172,7 +166,7 @@ const Calendar: React.FC = () => {
   const handleAdd = () => {
     setEditingSchedule(null);
     setFormData({
-      ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
+      ageGroup: 'U12',
       homeAway: 'HOME',
       opponent: '',
       dateTime: '',
@@ -268,85 +262,25 @@ const Calendar: React.FC = () => {
         {upcomingSchedules.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-4 text-white">다가오는 일정</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {upcomingSchedules.map((schedule) => {
                 const { date, weekday, time } = formatDateTime(schedule.dateTime);
-                const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                 const location = (schedule as any).location || '장소 미정';
                 const teamName = schedule.homeAway === 'HOME' 
                   ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
                   : `${schedule.opponent} vs NYJ BJ UTD U12`;
+                const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                 
                 return (
-                  <div key={schedule.id} className="card bg-gray-900 border-2 border-red-500 p-4">
-                    {/* 경기 레이블 */}
-                    <div className="mb-3">
-                      <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">경기</span>
+                  <div key={schedule.id} className="bg-gray-800 border border-red-500 rounded-lg p-6 relative">
+                    {/* 경기 라벨 */}
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-red-500 text-white px-3 py-1 rounded text-sm font-semibold">경기</span>
                     </div>
                     
-                    {/* 팀명 vs 팀명 */}
-                    <p className="text-white font-bold mb-3">{teamName}</p>
-                    
-                    {/* 날짜/시간 */}
-                    <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
-                      <CalendarIcon className="w-4 h-4 text-blue-400" />
-                      <span>{date} {weekday}</span>
-                      <ClockIcon className="w-4 h-4 ml-2 text-gray-400" />
-                      <span>{time}</span>
-                    </div>
-                    
-                    {/* 위치 */}
-                    <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
-                      <MapPinIcon className="w-4 h-4 text-pink-400" />
-                      <span>{location}</span>
-                    </div>
-                    
-                    {/* 경기 종류 */}
-                    <div className="flex items-center space-x-2 mb-3 text-sm">
-                      <span className="text-lg">⚽</span>
-                      <span className="text-red-500">{schedule.type}</span>
-                    </div>
-                    
-                    {/* 구분선 */}
-                    <div className="border-t border-gray-700 my-3"></div>
-                    
-                    {/* 다가오는 경기 일정 */}
-                    <p className="text-center text-sm text-white mb-2">다가오는 경기 일정</p>
-                    
-                    {/* 카운트다운 */}
-                    <div className="flex justify-center items-center space-x-2">
-                      <div className="text-center">
-                        <div className="text-red-500 text-2xl font-bold">
-                          {String(countdown.days).padStart(2, '0')}
-                        </div>
-                        <div className="text-white text-xs">일</div>
-                      </div>
-                      <span className="text-red-500 text-xl">:</span>
-                      <div className="text-center">
-                        <div className="text-red-500 text-2xl font-bold">
-                          {String(countdown.hours).padStart(2, '0')}
-                        </div>
-                        <div className="text-white text-xs">시</div>
-                      </div>
-                      <span className="text-red-500 text-xl">:</span>
-                      <div className="text-center">
-                        <div className="text-red-500 text-2xl font-bold">
-                          {String(countdown.minutes).padStart(2, '0')}
-                        </div>
-                        <div className="text-white text-xs">분</div>
-                      </div>
-                      <span className="text-red-500 text-xl">:</span>
-                      <div className="text-center">
-                        <div className="text-red-500 text-2xl font-bold">
-                          {String(countdown.seconds).padStart(2, '0')}
-                        </div>
-                        <div className="text-white text-xs">초</div>
-                      </div>
-                    </div>
-                    
-                    {/* 관리자 버튼 */}
+                    {/* 수정/삭제 버튼 */}
                     {isAdmin && (
-                      <div className="flex justify-end space-x-2 mt-3">
+                      <div className="absolute top-4 right-4 flex space-x-2">
                         <button
                           onClick={() => handleEdit(schedule)}
                           className="text-blue-400 hover:text-blue-300"
@@ -361,6 +295,64 @@ const Calendar: React.FC = () => {
                         </button>
                       </div>
                     )}
+                    
+                    {/* 제목 */}
+                    <div className="mt-8 mb-4">
+                      <h3 className="text-base font-bold text-white leading-tight whitespace-nowrap">
+                        {teamName}
+                      </h3>
+                    </div>
+                    
+                    {/* 날짜/시간, 위치, 경기 종류 */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center space-x-2 text-white text-sm">
+                        <CalendarIcon className="w-4 h-4" />
+                        <span>{date} {weekday}</span>
+                        <ClockIcon className="w-4 h-4 ml-2" />
+                        <span>{time}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white text-sm">
+                        <MapPinIcon className="w-4 h-4" />
+                        <span>{location}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-white text-sm">
+                        <span className="text-lg">⚽</span>
+                        <span className="text-red-500">{schedule.type}</span>
+                      </div>
+                    </div>
+                    
+                    {/* 구분선 */}
+                    <div className="border-t border-gray-700 my-4"></div>
+                    
+                    {/* 카운트다운 */}
+                    <div className="text-center">
+                      <p className="text-sm text-white mb-2">다가오는 경기 일정</p>
+                      {/* 첫 번째 줄: 숫자와 콜론 */}
+                      <div className="flex items-center justify-center space-x-1 mb-1">
+                        <span className="text-2xl font-bold text-red-500">
+                          {String(countdown.days).padStart(2, '0')}
+                        </span>
+                        <span className="text-2xl font-bold text-red-500">:</span>
+                        <span className="text-2xl font-bold text-red-500">
+                          {String(countdown.hours).padStart(2, '0')}
+                        </span>
+                        <span className="text-2xl font-bold text-red-500">:</span>
+                        <span className="text-2xl font-bold text-red-500">
+                          {String(countdown.minutes).padStart(2, '0')}
+                        </span>
+                        <span className="text-2xl font-bold text-red-500">:</span>
+                        <span className="text-2xl font-bold text-red-500">
+                          {String(countdown.seconds).padStart(2, '0')}
+                        </span>
+                      </div>
+                      {/* 두 번째 줄: 라벨만 */}
+                      <div className="flex items-center justify-center space-x-8 text-xs text-white">
+                        <span>일</span>
+                        <span>시</span>
+                        <span>분</span>
+                        <span>초</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -373,19 +365,20 @@ const Calendar: React.FC = () => {
           <h2 className="text-2xl font-bold mb-4">전체 일정</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-white">연도</label>
+              <label className="block text-sm font-medium mb-2">연도</label>
               <select
                 className="input-field"
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
               >
                 <option value="전체">전체</option>
-                <option value="2027">2027</option>
-                <option value="2026">2026</option>
+                <option value="2026">2026년</option>
+                <option value="2027">2027년</option>
+                <option value="2028">2028년</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-white">유형</label>
+              <label className="block text-sm font-medium mb-2">유형</label>
               <select
                 className="input-field"
                 value={typeFilter}
@@ -399,7 +392,7 @@ const Calendar: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-white">연령</label>
+              <label className="block text-sm font-medium mb-2">연령</label>
               <select
                 className="input-field"
                 value={ageFilter}
@@ -430,7 +423,7 @@ const Calendar: React.FC = () => {
             return (
               <div
                 key={schedule.id}
-                className="card bg-gray-900 p-4"
+                className={`card p-4 ${past ? 'bg-gray-700' : 'bg-gray-900'}`}
               >
                 {/* 태그 */}
                 <div className="flex items-center space-x-2 mb-3">
@@ -580,9 +573,9 @@ const Calendar: React.FC = () => {
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="예: 남양주체육문화센터"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="장소를 입력하세요"
                   />
                 </div>
                 <div className="flex space-x-2">

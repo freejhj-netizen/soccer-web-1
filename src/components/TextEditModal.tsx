@@ -10,9 +10,6 @@ interface TextEditModalProps {
   initialSubtitle?: string;
   initialContent?: string;
   showSubtitle?: boolean;
-  pinned?: boolean;
-  onPinnedChange?: (pinned: boolean) => void;
-  showPinned?: boolean;
 }
 
 export const TextEditModal: React.FC<TextEditModalProps> = ({
@@ -23,9 +20,6 @@ export const TextEditModal: React.FC<TextEditModalProps> = ({
   initialSubtitle = '',
   initialContent = '',
   showSubtitle = false,
-  pinned = false,
-  onPinnedChange,
-  showPinned = false,
 }) => {
   const [title, setTitle] = useState(initialTitle);
   const [subtitle, setSubtitle] = useState(initialSubtitle);
@@ -158,10 +152,7 @@ export const TextEditModal: React.FC<TextEditModalProps> = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel 
-                className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-gray-900 border border-gray-800 shadow-xl transition-all"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-gray-900 border border-gray-800 shadow-xl transition-all">
                 <div className="flex justify-between items-center p-4 border-b border-gray-800">
                   <Dialog.Title className="text-xl font-semibold text-white">내용 수정</Dialog.Title>
                   <button
@@ -340,33 +331,8 @@ export const TextEditModal: React.FC<TextEditModalProps> = ({
                       contentEditable
                       className="min-h-[300px] p-4 bg-gray-800 text-white rounded-b-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-gold overflow-y-auto"
                       style={{ whiteSpace: 'pre-wrap' }}
-                      suppressContentEditableWarning={true}
                     />
                   </div>
-
-                  {/* 고정 체크박스 */}
-                  {showPinned && onPinnedChange && (
-                    <div className="flex items-center pt-4 border-t border-gray-800">
-                      <input
-                        type="checkbox"
-                        id="pinned-modal"
-                        checked={pinned}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onPinnedChange(e.target.checked);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 text-gold bg-gray-700 border-gray-600 rounded focus:ring-gold"
-                      />
-                      <label 
-                        htmlFor="pinned-modal" 
-                        className="ml-2 text-sm text-gray-300 cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        고정 (공지사항 목록 상단에 표시)
-                      </label>
-                    </div>
-                  )}
 
                   <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800">
                     <button

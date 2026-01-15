@@ -14,16 +14,16 @@ const Setting: React.FC = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const getRoleLabel = (role?: string) => {
+  const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin':
         return '관리자';
       case 'member':
-        return '학부모/선수';
+        return '선수/학부모';
       case 'guest':
         return '손님';
       default:
-        return '손님';
+        return role;
     }
   };
 
@@ -54,14 +54,8 @@ const Setting: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
-      await logout();
-    }
-  };
-
   const handleDeleteAccount = async () => {
-    if (!confirm('정말 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+    if (!confirm('정말 회원탈퇴를 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
       return;
     }
 
@@ -71,7 +65,7 @@ const Setting: React.FC = () => {
       // Firestore에서 사용자 데이터 삭제
       await deleteDoc(doc(db, 'users', currentUser.uid));
       
-      // Firebase Auth에서 사용자 삭제
+      // Firebase Auth에서 사용자 계정 삭제
       await deleteUser(currentUser);
       
       // 로그아웃 및 로그인 페이지로 이동
@@ -80,6 +74,12 @@ const Setting: React.FC = () => {
     } catch (err: any) {
       console.error('Error deleting account:', err);
       setError(err.message || '회원탈퇴에 실패했습니다.');
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm('로그아웃 하시겠습니까?')) {
+      await logout();
     }
   };
 
@@ -93,12 +93,12 @@ const Setting: React.FC = () => {
             <h2 className="text-xl font-bold mb-4 text-white">프로필 정보</h2>
             <div className="space-y-4">
               {error && (
-                <div className="bg-red-900 border border-red-700 text-red-300 px-4 py-3 rounded-lg">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                   {error}
                 </div>
               )}
               {message && (
-                <div className="bg-green-900 border border-green-700 text-green-300 px-4 py-3 rounded-lg">
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
                   {message}
                 </div>
               )}
@@ -107,7 +107,7 @@ const Setting: React.FC = () => {
                 <input
                   type="email"
                   disabled
-                  className="input-field"
+                  className="input-field bg-gray-800"
                   value={currentUser?.email || ''}
                 />
               </div>
@@ -116,8 +116,8 @@ const Setting: React.FC = () => {
                 <input
                   type="text"
                   disabled
-                  className="input-field"
-                  value={getRoleLabel(userData?.role)}
+                  className="input-field bg-gray-800"
+                  value={getRoleLabel(userData?.role || 'guest')}
                 />
               </div>
             </div>
@@ -149,30 +149,24 @@ const Setting: React.FC = () => {
                   placeholder="새 비밀번호를 다시 입력하세요"
                 />
               </div>
-              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors w-full">비밀번호 변경</button>
+              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors">비밀번호 변경</button>
             </form>
           </div>
 
-          {/* 로그아웃 */}
+          {/* 계정 관리 */}
           <div className="card">
             <h2 className="text-xl font-bold mb-4 text-white">계정</h2>
-            <button onClick={handleLogout} className="btn-secondary w-full">
-              로그아웃
-            </button>
-          </div>
-
-          {/* 회원탈퇴 */}
-          <div className="card bg-red-900 border-red-700">
-            <h2 className="text-xl font-bold mb-4 text-white">회원탈퇴</h2>
-            <p className="text-white mb-4 text-sm">
-              회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.
-            </p>
-            <button 
-              onClick={handleDeleteAccount} 
-              className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors w-full"
-            >
-              회원탈퇴
-            </button>
+            <div className="space-y-4">
+              <button onClick={handleLogout} className="btn-secondary w-full">
+                로그아웃
+              </button>
+              <button 
+                onClick={handleDeleteAccount} 
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors w-full"
+              >
+                회원탈퇴
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy 
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Post } from '../types';
-import { TextEditModal } from '../components/TextEditModal';
+import RichTextEditor from '../components/RichTextEditor';
 
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
@@ -13,13 +13,13 @@ const Notice: React.FC = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     pinned: false,
   });
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const isAdmin = userData?.role === 'admin';
 
@@ -69,43 +69,13 @@ const Notice: React.FC = () => {
   const handleAdd = () => {
     setEditingPost(null);
     setFormData({ title: '', content: '', pinned: false });
-    setIsEditorOpen(true);
+    setShowModal(true);
   };
 
   const handleEdit = (post: Post) => {
     setEditingPost(post);
     setFormData({ title: post.title, content: post.content, pinned: post.pinned || false });
-    setIsEditorOpen(true);
-  };
-
-  const handleEditorSave = async (title: string, _subtitle: string, content: string) => {
-    if (!userData || !db) return;
-
-    try {
-      const postData = {
-        type: 'notice' as const,
-        title: title,
-        content: content,
-        author: userData.displayName || userData.email,
-        authorUid: userData.uid,
-        views: editingPost?.views || 0,
-        comments: editingPost?.comments || [],
-        pinned: formData.pinned,
-        createdAt: editingPost?.createdAt || new Date(),
-      };
-
-      if (editingPost) {
-        await updateDoc(doc(db, 'posts', editingPost.id), postData);
-      } else {
-        await addDoc(collection(db, 'posts'), postData);
-      }
-
-      setIsEditorOpen(false);
-      fetchPosts();
-    } catch (error) {
-      console.error('Error saving post:', error);
-      alert('저장에 실패했습니다.');
-    }
+    setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -120,6 +90,37 @@ const Notice: React.FC = () => {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!userData || !db) return;
+
+    try {
+      const postData = {
+        type: 'notice' as const,
+        title: formData.title,
+        content: formData.content,
+        author: userData.displayName || userData.email,
+        authorUid: userData.uid,
+        views: editingPost?.views || 0,
+        comments: editingPost?.comments || [],
+        pinned: formData.pinned,
+        createdAt: editingPost?.createdAt || new Date(),
+      };
+
+      if (editingPost) {
+        await updateDoc(doc(db, 'posts', editingPost.id), postData);
+      } else {
+        await addDoc(collection(db, 'posts'), postData);
+      }
+
+      setShowModal(false);
+      fetchPosts();
+    } catch (error) {
+      console.error('Error saving post:', error);
+      alert('저장에 실패했습니다.');
+    }
+  };
 
   const handlePostClick = (postId: string) => {
     navigate(`/notice/${postId}`);
@@ -163,26 +164,22 @@ const Notice: React.FC = () => {
                     </div>
                     <div className="text-sm font-semibold truncate pr-2 text-white">{post.title}</div>
                   </div>
-                  <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
-                    <span className="text-gray-400 text-sm">💬</span>
-                    <span className="text-gray-400 text-sm">{post.comments?.length || 0}</span>
-                    {isAdmin && (
-                      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleEdit(post)}
-                          className="text-gold-400 hover:text-gold-300"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(post.id)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {isAdmin && (
+                    <div className="flex space-x-2 ml-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleEdit(post)}
+                        className="text-gold-400 hover:text-gold-300"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(post.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -193,18 +190,59 @@ const Notice: React.FC = () => {
           <div className="text-center text-gray-400 py-12">공지사항이 없습니다.</div>
         )}
 
-        {/* 에디터 모달 */}
-        <TextEditModal
-          isOpen={isEditorOpen}
-          onClose={() => setIsEditorOpen(false)}
-          onSave={handleEditorSave}
-          initialTitle={formData.title}
-          initialContent={formData.content}
-          showSubtitle={false}
-          pinned={formData.pinned}
-          onPinnedChange={(pinned) => setFormData({ ...formData, pinned })}
-          showPinned={isAdmin}
-        />
+        {/* 모달 */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gray-900 border border-gray-800 rounded-lg max-w-3xl w-full p-6 my-8">
+              <h2 className="text-2xl font-bold mb-4 text-white">
+                {editingPost ? '공지사항 수정' : '공지사항 작성'}
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">제목 *</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">내용 *</label>
+                  <RichTextEditor
+                    value={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                  />
+                </div>
+                {isAdmin && (
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pinned"
+                      checked={formData.pinned}
+                      onChange={(e) => setFormData({ ...formData, pinned: e.target.checked })}
+                      className="w-4 h-4 text-gold bg-gray-700 border-gray-600 rounded focus:ring-gold"
+                    />
+                    <label htmlFor="pinned" className="ml-2 text-sm text-gray-300">
+                      고정 (공지사항 목록 상단에 표시)
+                    </label>
+                  </div>
+                )}
+                <div className="flex space-x-2">
+                  <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors flex-1">저장</button>
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="btn-secondary flex-1"
+                  >
+                    취소
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
   );
 };

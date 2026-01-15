@@ -55,7 +55,7 @@ const Header: React.FC = () => {
                 className={`px-3 py-2 rounded-lg transition-colors ${
                   isActive(item.path)
                     ? 'bg-blue-500 text-white font-semibold'
-                    : 'hover:bg-gray-800 text-white'
+                    : 'hover:bg-gray-800'
                 }`}
               >
                 {item.label}
