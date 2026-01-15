@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# GitHub 토큰이 포함된 파일들
+push_to_github*.bat
+github_push.bat
+GITHUB_PUSH*.md
+GITHUB_SETUP.md
