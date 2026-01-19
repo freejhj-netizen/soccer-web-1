@@ -17,6 +17,8 @@ import Notice from './pages/Notice';
 import PostDetail from './pages/PostDetail';
 import Setting from './pages/Setting';
 import Admin from './pages/Admin';
+import OpponentAnalysis from './pages/OpponentAnalysis';
+import Highlight from './pages/Highlight';
 
 const AppRoutes: React.FC = () => {
   const { currentUser, loading } = useAuth();
@@ -95,6 +97,26 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute>
             <Layout>
               <GameDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/opponent-analysis"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <OpponentAnalysis />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/highlight"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Highlight />
             </Layout>
           </ProtectedRoute>
         }

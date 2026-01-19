@@ -24,6 +24,7 @@ const PlayerPage: React.FC = () => {
     ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
     jerseyNumber: '',
     photo: null as File | null,
+    removePhoto: false,
   });
 
   const isAdmin = userData?.role === 'admin';
@@ -83,6 +84,7 @@ const PlayerPage: React.FC = () => {
       ageGroup: 'U12',
       jerseyNumber: '',
       photo: null,
+      removePhoto: false,
     });
     setShowModal(true);
   };
@@ -97,6 +99,7 @@ const PlayerPage: React.FC = () => {
       ageGroup: player.ageGroup,
       jerseyNumber: player.jerseyNumber?.toString() || '',
       photo: null,
+      removePhoto: false,
     });
     setShowModal(true);
   };
@@ -123,11 +126,16 @@ const PlayerPage: React.FC = () => {
     try {
       let photoUrl = editingPlayer?.photoUrl || '';
 
-      if (formData.photo) {
+      if (formData.removePhoto) {
+        // 이미지 삭제
+        photoUrl = '';
+      } else if (formData.photo) {
+        // 새 이미지 업로드
         const storageRef = ref(storage, `players/${Date.now()}_${formData.photo.name}`);
         await uploadBytes(storageRef, formData.photo);
         photoUrl = await getDownloadURL(storageRef);
       }
+      // formData.photo가 없고 removePhoto도 false면 기존 photoUrl 유지
 
       const playerData = {
         name: formData.name,
@@ -359,11 +367,35 @@ const PlayerPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-white">사진</label>
+                  {editingPlayer?.photoUrl && !formData.removePhoto && (
+                    <div className="mb-2 relative">
+                      <img
+                        src={editingPlayer.photoUrl}
+                        alt="현재 사진"
+                        className="w-32 h-32 object-cover rounded-lg border border-gray-700"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, removePhoto: true, photo: null })}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded hover:bg-red-600 text-xs"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                  {formData.removePhoto && (
+                    <div className="mb-2 p-2 bg-gray-800 rounded text-sm text-gray-400">
+                      이미지가 삭제됩니다. 새 이미지를 선택하거나 저장하면 이미지 없이 저장됩니다.
+                    </div>
+                  )}
                   <input
                     type="file"
                     accept="image/*"
                     className="input-field"
-                    onChange={(e) => setFormData({ ...formData, photo: e.target.files?.[0] || null })}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setFormData({ ...formData, photo: file, removePhoto: false });
+                    }}
                   />
                 </div>
                 <div className="flex space-x-2">

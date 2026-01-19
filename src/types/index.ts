@@ -99,3 +99,25 @@ export interface MainContent {
   };
 }
 
+export interface OpponentAnalysis {
+  id: string;
+  date: any;
+  teamA: string;
+  teamB: string;
+  teamAScore: number | '';
+  teamBScore: number | '';
+  ageGroup: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7';
+  videoUrl: string;
+  type: '대회' | '연습경기' | '리그' | '스토브리그';
+  createdAt: any;
+}
+
+export interface Highlight {
+  id: string;
+  videoUrl: string;
+  date: any;
+  ageGroup: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7';
+  title: string;
+  createdAt: any;
+}
+

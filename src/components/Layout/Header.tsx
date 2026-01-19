@@ -13,6 +13,8 @@ const Header: React.FC = () => {
     { path: '/player', label: 'PLAYER' },
     { path: '/calendar', label: 'CALENDAR' },
     { path: '/game', label: 'SCORE' },
+    { path: '/opponent-analysis', label: '상대팀 분석' },
+    { path: '/highlight', label: 'HIGHLIGHT' },
     { path: '/notice', label: '공지사항' },
     { path: '/setting', label: 'SETTING' },
   ];
