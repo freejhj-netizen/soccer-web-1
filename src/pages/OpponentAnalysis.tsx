@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import type { OpponentAnalysis } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, FilmIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 
 const OpponentAnalysisPage: React.FC = () => {
   const { userData } = useAuth();
@@ -179,12 +178,6 @@ const OpponentAnalysisPage: React.FC = () => {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}.${month}.${day}.`;
-  };
-
-  const getVideoId = (url: string) => {
-    if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    return match ? match[1] : null;
   };
 
   if (loading) {
