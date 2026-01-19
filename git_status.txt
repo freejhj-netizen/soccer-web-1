@@ -1,0 +1,16 @@
+On branch main-clean-final
+Your branch is up to date with 'origin/main-clean-final'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .firebase/hosting.ZGlzdA.cache
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	git_status.txt
+	"\354\240\200\354\236\245_\353\254\270\354\240\234_\355\225\264\352\262\260_\352\260\200\354\235\264\353\223\234.md"
+	"\354\265\234\354\242\205_\354\240\200\354\236\245_\353\260\217_\355\231\225\354\235\270.bat"
+	"\354\265\234\354\242\205_\354\240\200\354\236\245_\354\231\204\353\243\214_\353\246\254\355\217\254\355\212\270.md"
+
+no changes added to commit (use "git add" and/or "git commit -a")
