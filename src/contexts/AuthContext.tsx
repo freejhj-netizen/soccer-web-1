@@ -50,8 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserData(userDoc.data() as User);
       } else {
         // 사용자 데이터가 없으면 기본값으로 생성
-        // 관리자 이메일이거나 개발 모드인 경우 admin 권한 부여
-        const isAdmin = email === adminEmail || (isDevMode && isLocalhost);
+        // 관리자 이메일인 경우에만 admin 권한 부여 (개발 모드 체크 제거)
+        const isAdmin = email === adminEmail;
         const defaultUser: User = {
           uid,
           email: email || '',
@@ -96,12 +96,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
       if (user && db) {
         // 관리자 이메일 확인 및 권한 부여
+        // 개발 모드 체크 제거: 실제 사용자는 Firestore의 role을 사용
         const isAdminEmail = user.email === adminEmail;
         
-        if (isAdminEmail || (isDevMode && isLocalhost)) {
+        // 관리자 이메일인 경우에만 권한 부여 (개발 모드 자동 권한 부여 제거)
+        if (isAdminEmail) {
           try {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
+            const existingRole = userDoc.data()?.role;
+            
+            // Firestore에 문서가 없거나 role이 admin이 아닌 경우에만 업데이트
+            if (!userDoc.exists() || existingRole !== 'admin') {
               await setDoc(doc(db, 'users', user.uid), {
                 uid: user.uid,
                 email: user.email,
@@ -114,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Error setting admin role:', error);
           }
         }
+        // Firestore에서 사용자 데이터 가져오기 (실제 role 사용)
         await fetchUserData(user.uid, user.email);
       } else {
         // 로그인하지 않은 상태에서 개발 모드인 경우

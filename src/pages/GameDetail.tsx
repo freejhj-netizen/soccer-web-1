@@ -126,7 +126,7 @@ const GameDetail: React.FC = () => {
                 <p className="font-bold text-white text-base leading-tight">U12</p>
               </div>
               <div className="text-3xl font-bold text-white whitespace-nowrap">
-                {game.ourScore} - {game.opponentScore}
+                {game.ourScore !== null && game.ourScore !== undefined ? game.ourScore : ''} - {game.opponentScore !== null && game.opponentScore !== undefined ? game.opponentScore : ''}
               </div>
               <div className="text-center max-w-[120px]">
                 <p className="font-bold text-white text-sm leading-tight whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: game.opponent.length > 8 ? '0.75rem' : '1rem' }}>
@@ -144,18 +144,20 @@ const GameDetail: React.FC = () => {
           {/* 쿼터별 스코어 */}
           <div className="card mb-6 bg-gray-900">
             <div className="grid grid-cols-2 gap-4">
-              {(['q1', 'q2', 'q3', 'q4'] as const).map((q, index) => {
+              {(['q1', 'q2', 'q3', 'q4', 'q5', 'q6'] as const).map((q, index) => {
+                const quarter = game.quarters[q];
+                if (!quarter) return null;
                 const quarterResult = getQuarterResult(
-                  game.quarters[q].our, 
-                  game.quarters[q].opponent,
-                  (game.quarters[q] as any).result
+                  quarter.our || 0, 
+                  quarter.opponent || 0,
+                  (quarter as any).result
                 );
                 return (
                   <div key={q} className="bg-gray-800 rounded-lg p-4 text-center">
                     <p className="text-sm text-gray-400 mb-2">{index + 1}쿼터</p>
-                    {!quarterResult.isNotPlayed && (
+                    {!quarterResult.isNotPlayed && quarter.our !== null && quarter.opponent !== null && (
                       <p className="text-xl font-bold text-white mb-2">
-                        {game.quarters[q].our} - {game.quarters[q].opponent}
+                        {quarter.our !== null && quarter.our !== undefined ? quarter.our : ''} - {quarter.opponent !== null && quarter.opponent !== undefined ? quarter.opponent : ''}
                       </p>
                     )}
                     <p className={`text-sm font-semibold ${quarterResult.color}`}>

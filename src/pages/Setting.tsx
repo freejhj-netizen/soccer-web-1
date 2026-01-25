@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { updatePassword, deleteUser } from 'firebase/auth';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { updatePassword, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,9 @@ const Setting: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
   const getRoleLabel = (role: string) => {
     switch (role) {
@@ -22,6 +25,8 @@ const Setting: React.FC = () => {
         return '선수/학부모';
       case 'guest':
         return '손님';
+      case 'coach':
+        return '감독/코치/운영진';
       default:
         return role;
     }
@@ -54,26 +59,109 @@ const Setting: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!confirm('정말 회원탈퇴를 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
-      return;
-    }
+  const handleDeleteAccount = () => {
+    setShowDeleteConfirmModal(true);
+  };
 
-    if (!currentUser || !db) return;
+  const confirmDeleteAccount = async () => {
+    setShowDeleteConfirmModal(false);
+
+    if (!currentUser || !db || !auth) return;
 
     try {
-      // Firestore에서 사용자 데이터 삭제
-      await deleteDoc(doc(db, 'users', currentUser.uid));
+      // Firestore에 deletedAt 필드 추가 (30일 보관)
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        deletedAt: serverTimestamp(),
+      });
+
+      // Firebase Auth에서 사용자 계정 삭제 시도
+      try {
+        await deleteUser(currentUser);
+      } catch (authErr: any) {
+        console.error('Error deleting Auth account:', authErr);
+        
+        // 재인증이 필요한 경우
+        if (authErr.code === 'auth/requires-recent-login') {
+          setShowReauthModal(true);
+          setError(''); // 모달 표시 전 에러 메시지 초기화
+          return;
+        }
+        
+        // 이미 삭제된 계정인 경우
+        if (authErr.code === 'auth/user-not-found') {
+          // Firestore는 이미 deletedAt이 설정되었으므로 로그아웃만 진행
+          await logout();
+          navigate('/login');
+          return;
+        }
+        
+        // 다른 에러인 경우에도 Firestore는 deletedAt이 설정되었으므로 로그아웃
+        await logout();
+        navigate('/login');
+        return;
+      }
       
-      // Firebase Auth에서 사용자 계정 삭제
-      await deleteUser(currentUser);
-      
-      // 로그아웃 및 로그인 페이지로 이동
+      // 성공적으로 삭제된 경우
       await logout();
       navigate('/login');
     } catch (err: any) {
       console.error('Error deleting account:', err);
-      setError(err.message || '회원탈퇴에 실패했습니다.');
+      
+      // 에러 코드에 따른 메시지 표시
+      if (err.code === 'auth/requires-recent-login') {
+        setShowReauthModal(true);
+      } else {
+        setError(err.message || '회원탈퇴에 실패했습니다. 관리자에게 문의해주세요.');
+      }
+    }
+  };
+
+  const handleReauthAndDelete = async () => {
+    if (!currentUser || !auth || !reauthPassword || !db) {
+      setError('비밀번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      // 재인증
+      const credential = EmailAuthProvider.credential(
+        currentUser.email!,
+        reauthPassword
+      );
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // 재인증 성공 후 Firestore에 deletedAt 필드 추가 (30일 보관)
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        deletedAt: serverTimestamp(),
+      });
+
+      // Firebase Auth에서 계정 삭제
+      try {
+        await deleteUser(currentUser);
+        // 성공적으로 삭제된 경우
+        await logout();
+        navigate('/login');
+      } catch (deleteErr: any) {
+        console.error('Error deleting Auth account:', deleteErr);
+        if (deleteErr.code === 'auth/user-not-found') {
+          // 이미 삭제된 경우 - Firestore는 이미 deletedAt이 설정되었으므로 로그아웃만 진행
+          await logout();
+          navigate('/login');
+        } else {
+          // 다른 에러인 경우에도 Firestore는 deletedAt이 설정되었으므로 로그아웃
+          await logout();
+          navigate('/login');
+        }
+      }
+    } catch (err: any) {
+      console.error('Reauthentication error:', err);
+      if (err.code === 'auth/wrong-password') {
+        setError('비밀번호가 일치하지 않습니다.');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('인증 정보가 올바르지 않습니다.');
+      } else {
+        setError(err.message || '재인증에 실패했습니다.');
+      }
     }
   };
 
@@ -169,6 +257,80 @@ const Setting: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* 회원탈퇴 확인 모달 */}
+        {showDeleteConfirmModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-bold text-white mb-4">회원탈퇴 확인</h2>
+              <p className="text-gray-300 mb-6 leading-relaxed">
+                회원탈퇴 후 30일 동안은 동일한 계정으로 재가입이 불가합니다. 탈퇴하시겠습니까?
+              </p>
+              <div className="flex space-x-2">
+                <button
+                  onClick={confirmDeleteAccount}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  예
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirmModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  아니오
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 재인증 모달 */}
+        {showReauthModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full">
+              <h2 className="text-xl font-bold text-white mb-4">보안 확인</h2>
+              <p className="text-gray-300 mb-4">
+                회원탈퇴를 위해 비밀번호를 다시 입력해주세요.
+              </p>
+              {error && (
+                <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4">
+                  {error}
+                </div>
+              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-2">
+                  비밀번호
+                </label>
+                <input
+                  type="password"
+                  className="input-field w-full"
+                  placeholder="현재 비밀번호를 입력하세요"
+                  value={reauthPassword}
+                  onChange={(e) => setReauthPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleReauthAndDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  확인
+                </button>
+                <button
+                  onClick={() => {
+                    setShowReauthModal(false);
+                    setReauthPassword('');
+                    setError('');
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     
   );

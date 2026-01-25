@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'member' | 'guest';
+export type UserRole = 'admin' | 'member' | 'guest' | 'coach';
 
 export interface User {
   uid: string;
@@ -7,6 +7,7 @@ export interface User {
   displayName?: string;
   createdAt: any;
   lastLogin?: any;
+  deletedAt?: any; // 회원탈퇴 시각 (30일 후 자동 삭제)
 }
 
 export interface Player {
@@ -37,15 +38,17 @@ export interface Game {
   ageGroup: string;
   opponent: string;
   opponentLogoUrl?: string;
-  ourScore: number;
-  opponentScore: number;
-  result: '승리' | '무승부' | '패배';
+  ourScore: number | null;
+  opponentScore: number | null;
+  result: '승리' | '무승부' | '패배' | '미진행';
   type: '대회' | '연습경기' | '리그' | '스토브리그';
   quarters: {
-    q1: { our: number; opponent: number };
-    q2: { our: number; opponent: number };
-    q3: { our: number; opponent: number };
-    q4: { our: number; opponent: number };
+    q1: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
+    q2: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
+    q3: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
+    q4: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
+    q5: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
+    q6: { our: number | null; opponent: number | null; result: '승리' | '무승부' | '패배' | '미진행' };
   };
   videoUrl?: string;
   createdAt: any;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { User, UserRole } from '../types';
 
@@ -7,11 +7,13 @@ import ProtectedRoute from '../components/ProtectedRoute';
 
 const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [deletedUsers, setDeletedUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'deleted'>('active');
 
   useEffect(() => {
     fetchUsers();
@@ -24,10 +26,48 @@ const Admin: React.FC = () => {
     }
     try {
       const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersData = querySnapshot.docs.map((doc) => ({
-        ...doc.data(),
-      })) as User[];
-      setUsers(usersData);
+      const usersData = querySnapshot.docs
+        .map((doc) => ({
+          ...doc.data(),
+        })) as User[];
+      
+      // deletedAt이 없는 활성 계정만 필터링
+      const activeUsers = usersData.filter(user => !user.deletedAt);
+      
+      // deletedAt이 있는 탈퇴 계정 필터링
+      const deletedUsersList = usersData.filter(user => user.deletedAt);
+      
+      // 30일 경과한 탈퇴 계정 자동 삭제
+      const now = new Date();
+      const usersToDelete: string[] = [];
+      
+      deletedUsersList.forEach(user => {
+        if (user.deletedAt) {
+          const deletedAt = user.deletedAt.toDate ? user.deletedAt.toDate() : new Date(user.deletedAt);
+          const daysSinceDeletion = Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysSinceDeletion >= 30) {
+            usersToDelete.push(user.uid);
+          }
+        }
+      });
+      
+      // 30일 경과한 계정 삭제
+      for (const uid of usersToDelete) {
+        try {
+          await deleteDoc(doc(db, 'users', uid));
+        } catch (deleteErr) {
+          console.error('Error deleting expired user:', deleteErr);
+        }
+      }
+      
+      // 삭제 후 다시 필터링 (30일 경과한 계정 제외)
+      const remainingDeletedUsers = deletedUsersList.filter(user => 
+        !usersToDelete.includes(user.uid)
+      );
+      
+      setUsers(activeUsers);
+      setDeletedUsers(remainingDeletedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -87,15 +127,20 @@ const Admin: React.FC = () => {
   };
 
   const handleDeleteUser = async (uid: string) => {
-    if (!confirm('정말 이 회원을 탈퇴시키시겠습니까? 모든 데이터가 삭제됩니다.')) return;
+    if (!confirm('정말 이 회원을 탈퇴시키시겠습니까? 회원탈퇴 후 30일 동안은 동일한 계정으로 재가입이 불가합니다.')) return;
     if (!db) return;
 
     try {
-      await deleteDoc(doc(db, 'users', uid));
+      // deletedAt 필드 추가 (30일 보관)
+      await updateDoc(doc(db, 'users', uid), {
+        deletedAt: serverTimestamp(),
+      });
+      
       fetchUsers();
       if (selectedUser?.uid === uid) {
         setSelectedUser(null);
       }
+      alert('회원 탈퇴가 완료되었습니다. 30일 후 자동으로 삭제됩니다.');
     } catch (error) {
       console.error('Error deleting user:', error);
       alert('회원 탈퇴에 실패했습니다.');
@@ -110,6 +155,8 @@ const Admin: React.FC = () => {
         return 'bg-blue-500 text-white';
       case 'guest':
         return 'bg-gray-500 text-white';
+      case 'coach':
+        return 'bg-purple-500 text-white';
       default:
         return 'bg-gray-300 text-gray-700';
     }
@@ -123,6 +170,8 @@ const Admin: React.FC = () => {
         return '선수/학부모';
       case 'guest':
         return '손님';
+      case 'coach':
+        return '감독/코치/운영진';
       default:
         return role;
     }
@@ -141,10 +190,53 @@ const Admin: React.FC = () => {
       <div className="container mx-auto px-4 py-8 bg-black min-h-screen">
         <h1 className="text-3xl font-bold mb-8 text-white">계정 관리</h1>
 
+        {/* 탭 메뉴 */}
+        <div className="mb-6 flex space-x-4 border-b border-gray-700">
+          <button
+            onClick={() => {
+              setActiveTab('active');
+              setExpandedUser(null);
+            }}
+            className={`pb-2 px-4 font-semibold transition-colors ${
+              activeTab === 'active'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            활성 회원 ({users.length})
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('deleted');
+              setExpandedUser(null);
+            }}
+            className={`pb-2 px-4 font-semibold transition-colors ${
+              activeTab === 'deleted'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            탈퇴한 회원 ({deletedUsers.length})
+          </button>
+        </div>
+
         <div className="card">
-          <h2 className="text-xl font-bold mb-4 text-white">계정 목록</h2>
+          <h2 className="text-xl font-bold mb-4 text-white">
+            {activeTab === 'active' ? '활성 계정 목록' : '탈퇴한 계정 목록'}
+          </h2>
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
-            {users.map((user) => (
+            {(activeTab === 'active' ? users : deletedUsers).map((user) => {
+              // 탈퇴한 회원의 경우 남은 일수 계산
+              let remainingDays = null;
+              let deletedDate = null;
+              if (user.deletedAt) {
+                deletedDate = user.deletedAt.toDate ? user.deletedAt.toDate() : new Date(user.deletedAt);
+                const now = new Date();
+                const daysSinceDeletion = Math.floor((now.getTime() - deletedDate.getTime()) / (1000 * 60 * 60 * 24));
+                remainingDays = 30 - daysSinceDeletion;
+              }
+              
+              return (
               <div key={user.uid}>
                 <div
                   onClick={() => handleUserClick(user)}
@@ -157,19 +249,27 @@ const Admin: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-white">{user.email}</p>
-                      <span
-                        className={`inline-block px-2 py-1 rounded text-xs mt-1 ${getRoleBadgeColor(
-                          user.role
-                        )}`}
-                      >
-                        {getRoleLabel(user.role)}
-                      </span>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span
+                          className={`inline-block px-2 py-1 rounded text-xs ${getRoleBadgeColor(
+                            user.role
+                          )}`}
+                        >
+                          {getRoleLabel(user.role)}
+                        </span>
+                        {user.deletedAt && deletedDate && remainingDays !== null && (
+                          <span className="text-xs text-gray-400">
+                            탈퇴일: {deletedDate.toLocaleDateString('ko-KR')} 
+                            {remainingDays > 0 ? ` (${remainingDays}일 후 삭제)` : ' (삭제 예정)'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* 계정 관리 메뉴 */}
-                {expandedUser === user.uid && (
+                {/* 계정 관리 메뉴 - 활성 회원만 */}
+                {expandedUser === user.uid && activeTab === 'active' && (
                   <div className="mt-2 p-4 border border-gray-700 rounded-lg bg-gray-800">
                     <div className="space-y-6">
                       <div>
@@ -185,7 +285,7 @@ const Admin: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium mb-2 text-white">권한</label>
                         <div className="space-y-2">
-                          {(['admin', 'member', 'guest'] as UserRole[]).map((role) => (
+                          {(['admin', 'member', 'guest', 'coach'] as UserRole[]).map((role) => (
                             <label key={role} className="flex items-center space-x-2 text-white">
                               <input
                                 type="radio"
@@ -236,8 +336,59 @@ const Admin: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* 탈퇴한 회원 상세 정보 */}
+                {expandedUser === user.uid && activeTab === 'deleted' && user.deletedAt && deletedDate && (
+                  <div className="mt-2 p-4 border border-gray-700 rounded-lg bg-gray-800">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">이메일</label>
+                        <input
+                          type="email"
+                          disabled
+                          className="input-field bg-gray-700"
+                          value={user.email}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">권한</label>
+                        <input
+                          type="text"
+                          disabled
+                          className="input-field bg-gray-700"
+                          value={getRoleLabel(user.role)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">탈퇴일</label>
+                        <input
+                          type="text"
+                          disabled
+                          className="input-field bg-gray-700"
+                          value={deletedDate.toLocaleDateString('ko-KR') + ' ' + deletedDate.toLocaleTimeString('ko-KR')}
+                        />
+                      </div>
+                      {remainingDays !== null && (
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-white">삭제 예정일</label>
+                          <input
+                            type="text"
+                            disabled
+                            className="input-field bg-gray-700"
+                            value={remainingDays > 0 ? `${remainingDays}일 후 자동 삭제` : '곧 삭제 예정'}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+            )})}
+            {activeTab === 'deleted' && deletedUsers.length === 0 && (
+              <div className="text-center text-gray-400 py-8">
+                탈퇴한 회원이 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>

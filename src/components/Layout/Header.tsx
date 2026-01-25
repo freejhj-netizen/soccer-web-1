@@ -8,20 +8,36 @@ const Header: React.FC = () => {
   const { userData } = useAuth();
   const location = useLocation();
 
-  const menuItems = [
-    { path: '/', label: 'MAIN' },
-    { path: '/player', label: 'PLAYER' },
-    { path: '/calendar', label: 'CALENDAR' },
-    { path: '/game', label: 'SCORE' },
-    { path: '/opponent-analysis', label: '상대팀 분석' },
-    { path: '/highlight', label: 'HIGHLIGHT' },
-    { path: '/notice', label: '공지사항' },
-    { path: '/setting', label: 'SETTING' },
-  ];
+  const getMenuItems = () => {
+    // 손님 권한은 MAIN, 공지사항, SETTING만 표시
+    if (userData?.role === 'guest') {
+      return [
+        { path: '/', label: 'MAIN' },
+        { path: '/notice', label: '공지사항' },
+        { path: '/setting', label: 'SETTING' },
+      ];
+    }
 
-  if (userData?.role === 'admin') {
-    menuItems.push({ path: '/admin', label: 'ADMIN' });
-  }
+    // 일반 사용자 및 관리자 메뉴
+    const items = [
+      { path: '/', label: 'MAIN' },
+      { path: '/player', label: 'PLAYER' },
+      { path: '/calendar', label: 'CALENDAR' },
+      { path: '/game', label: 'SCORE' },
+      { path: '/opponent-analysis', label: '상대팀 분석' },
+      { path: '/highlight', label: 'HIGHLIGHT' },
+      { path: '/notice', label: '공지사항' },
+      { path: '/setting', label: 'SETTING' },
+    ];
+
+    if (userData?.role === 'admin') {
+      items.push({ path: '/admin', label: 'ADMIN' });
+    }
+
+    return items;
+  };
+
+  const menuItems = getMenuItems();
 
   const isActive = (path: string) => location.pathname === path;
 

@@ -37,14 +37,16 @@ const GamePage: React.FC = () => {
     ageGroup: 'U10' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
     type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
     opponent: '',
-    ourScore: 0,
-    opponentScore: 0,
+    ourScore: '' as number | '',
+    opponentScore: '' as number | '',
     result: '승리' as '승리' | '무승부' | '패배' | '미진행',
     quarters: {
       q1: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
       q2: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
       q3: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
       q4: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+      q5: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+      q6: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
     },
     videoUrl: '',
   });
@@ -150,8 +152,8 @@ const GamePage: React.FC = () => {
     };
 
     filteredGames.forEach((game) => {
-      stats.goalsFor += game.ourScore;
-      stats.goalsAgainst += game.opponentScore;
+      stats.goalsFor += game.ourScore || 0;
+      stats.goalsAgainst += game.opponentScore || 0;
       if (game.result === '승리') stats.wins++;
       else if (game.result === '무승부') stats.draws++;
       else stats.losses++;
@@ -179,14 +181,16 @@ const GamePage: React.FC = () => {
       ageGroup: 'U10' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
       type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
       opponent: '',
-      ourScore: 0,
-      opponentScore: 0,
+      ourScore: '' as number | '',
+      opponentScore: '' as number | '',
       result: '승리' as '승리' | '무승부' | '패배' | '미진행',
       quarters: {
-        q1: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
-        q2: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
-        q3: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
-        q4: { our: '', opponent: '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q1: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q2: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q3: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q4: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q5: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
+        q6: { our: '' as number | '', opponent: '' as number | '', result: '승리' as '승리' | '무승부' | '패배' | '미진행' },
       },
       videoUrl: '',
     });
@@ -201,6 +205,8 @@ const GamePage: React.FC = () => {
       q2: { our: 0, opponent: 0 },
       q3: { our: 0, opponent: 0 },
       q4: { our: 0, opponent: 0 },
+      q5: { our: 0, opponent: 0 },
+      q6: { our: 0, opponent: 0 },
     };
     setFormData({
       date: date.toISOString().slice(0, 10),
@@ -208,8 +214,8 @@ const GamePage: React.FC = () => {
       ageGroup: (game.ageGroup as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7') || 'U10',
       type: game.type,
       opponent: game.opponent,
-      ourScore: game.ourScore,
-      opponentScore: game.opponentScore,
+      ourScore: game.ourScore === null ? '' : game.ourScore,
+      opponentScore: game.opponentScore === null ? '' : game.opponentScore,
       result: (game.result as '승리' | '무승부' | '패배' | '미진행') || '승리',
       quarters: {
         q1: { 
@@ -231,6 +237,16 @@ const GamePage: React.FC = () => {
           our: quarters.q4?.our !== undefined && quarters.q4.our !== null ? quarters.q4.our : '', 
           opponent: quarters.q4?.opponent !== undefined && quarters.q4.opponent !== null ? quarters.q4.opponent : '', 
           result: (quarters.q4 as any)?.result || '승리' 
+        },
+        q5: { 
+          our: quarters.q5?.our !== undefined && quarters.q5.our !== null ? quarters.q5.our : '', 
+          opponent: quarters.q5?.opponent !== undefined && quarters.q5.opponent !== null ? quarters.q5.opponent : '', 
+          result: (quarters.q5 as any)?.result || '승리' 
+        },
+        q6: { 
+          our: quarters.q6?.our !== undefined && quarters.q6.our !== null ? quarters.q6.our : '', 
+          opponent: quarters.q6?.opponent !== undefined && quarters.q6.opponent !== null ? quarters.q6.opponent : '', 
+          result: (quarters.q6 as any)?.result || '승리' 
         },
       },
       videoUrl: game.videoUrl || '',
@@ -255,30 +271,40 @@ const GamePage: React.FC = () => {
         ageGroup: formData.ageGroup,
         opponent: formData.opponent,
         opponentLogoUrl: editingGame?.opponentLogoUrl || '',
-        ourScore: formData.ourScore,
-        opponentScore: formData.opponentScore,
+        ourScore: formData.ourScore === '' ? null : (typeof formData.ourScore === 'number' ? formData.ourScore : parseInt(String(formData.ourScore)) || null),
+        opponentScore: formData.opponentScore === '' ? null : (typeof formData.opponentScore === 'number' ? formData.opponentScore : parseInt(String(formData.opponentScore)) || null),
         result: formData.result,
         type: formData.type,
         quarters: {
           q1: { 
-            our: formData.quarters.q1.our === '' ? 0 : (typeof formData.quarters.q1.our === 'number' ? formData.quarters.q1.our : parseInt(String(formData.quarters.q1.our)) || 0), 
-            opponent: formData.quarters.q1.opponent === '' ? 0 : (typeof formData.quarters.q1.opponent === 'number' ? formData.quarters.q1.opponent : parseInt(String(formData.quarters.q1.opponent)) || 0),
+            our: formData.quarters.q1.our === '' || formData.quarters.q1.result === '미진행' ? null : (typeof formData.quarters.q1.our === 'number' ? formData.quarters.q1.our : parseInt(String(formData.quarters.q1.our)) || null), 
+            opponent: formData.quarters.q1.opponent === '' || formData.quarters.q1.result === '미진행' ? null : (typeof formData.quarters.q1.opponent === 'number' ? formData.quarters.q1.opponent : parseInt(String(formData.quarters.q1.opponent)) || null),
             result: formData.quarters.q1.result
           },
           q2: { 
-            our: formData.quarters.q2.our === '' ? 0 : (typeof formData.quarters.q2.our === 'number' ? formData.quarters.q2.our : parseInt(String(formData.quarters.q2.our)) || 0), 
-            opponent: formData.quarters.q2.opponent === '' ? 0 : (typeof formData.quarters.q2.opponent === 'number' ? formData.quarters.q2.opponent : parseInt(String(formData.quarters.q2.opponent)) || 0),
+            our: formData.quarters.q2.our === '' || formData.quarters.q2.result === '미진행' ? null : (typeof formData.quarters.q2.our === 'number' ? formData.quarters.q2.our : parseInt(String(formData.quarters.q2.our)) || null), 
+            opponent: formData.quarters.q2.opponent === '' || formData.quarters.q2.result === '미진행' ? null : (typeof formData.quarters.q2.opponent === 'number' ? formData.quarters.q2.opponent : parseInt(String(formData.quarters.q2.opponent)) || null),
             result: formData.quarters.q2.result
           },
           q3: { 
-            our: formData.quarters.q3.our === '' ? 0 : (typeof formData.quarters.q3.our === 'number' ? formData.quarters.q3.our : parseInt(String(formData.quarters.q3.our)) || 0), 
-            opponent: formData.quarters.q3.opponent === '' ? 0 : (typeof formData.quarters.q3.opponent === 'number' ? formData.quarters.q3.opponent : parseInt(String(formData.quarters.q3.opponent)) || 0),
+            our: formData.quarters.q3.our === '' || formData.quarters.q3.result === '미진행' ? null : (typeof formData.quarters.q3.our === 'number' ? formData.quarters.q3.our : parseInt(String(formData.quarters.q3.our)) || null), 
+            opponent: formData.quarters.q3.opponent === '' || formData.quarters.q3.result === '미진행' ? null : (typeof formData.quarters.q3.opponent === 'number' ? formData.quarters.q3.opponent : parseInt(String(formData.quarters.q3.opponent)) || null),
             result: formData.quarters.q3.result
           },
           q4: { 
-            our: formData.quarters.q4.our === '' ? 0 : (typeof formData.quarters.q4.our === 'number' ? formData.quarters.q4.our : parseInt(String(formData.quarters.q4.our)) || 0), 
-            opponent: formData.quarters.q4.opponent === '' ? 0 : (typeof formData.quarters.q4.opponent === 'number' ? formData.quarters.q4.opponent : parseInt(String(formData.quarters.q4.opponent)) || 0),
+            our: formData.quarters.q4.our === '' || formData.quarters.q4.result === '미진행' ? null : (typeof formData.quarters.q4.our === 'number' ? formData.quarters.q4.our : parseInt(String(formData.quarters.q4.our)) || null), 
+            opponent: formData.quarters.q4.opponent === '' || formData.quarters.q4.result === '미진행' ? null : (typeof formData.quarters.q4.opponent === 'number' ? formData.quarters.q4.opponent : parseInt(String(formData.quarters.q4.opponent)) || null),
             result: formData.quarters.q4.result
+          },
+          q5: { 
+            our: formData.quarters.q5.our === '' || formData.quarters.q5.result === '미진행' ? null : (typeof formData.quarters.q5.our === 'number' ? formData.quarters.q5.our : parseInt(String(formData.quarters.q5.our)) || null), 
+            opponent: formData.quarters.q5.opponent === '' || formData.quarters.q5.result === '미진행' ? null : (typeof formData.quarters.q5.opponent === 'number' ? formData.quarters.q5.opponent : parseInt(String(formData.quarters.q5.opponent)) || null),
+            result: formData.quarters.q5.result
+          },
+          q6: { 
+            our: formData.quarters.q6.our === '' || formData.quarters.q6.result === '미진행' ? null : (typeof formData.quarters.q6.our === 'number' ? formData.quarters.q6.our : parseInt(String(formData.quarters.q6.our)) || null), 
+            opponent: formData.quarters.q6.opponent === '' || formData.quarters.q6.result === '미진행' ? null : (typeof formData.quarters.q6.opponent === 'number' ? formData.quarters.q6.opponent : parseInt(String(formData.quarters.q6.opponent)) || null),
+            result: formData.quarters.q6.result
           },
         },
         videoUrl: formData.videoUrl,
@@ -454,7 +480,7 @@ const GamePage: React.FC = () => {
                     <td className="p-1.5 text-gray-300 whitespace-nowrap text-center">{formatDate(game.date)}</td>
                     <td className="p-1.5 font-semibold text-white whitespace-nowrap text-center">{game.opponent}</td>
                     <td className="p-1.5 font-bold text-white text-center whitespace-nowrap">
-                      {game.ourScore} : {game.opponentScore}
+                      {game.ourScore !== null && game.ourScore !== undefined ? game.ourScore : ''} : {game.opponentScore !== null && game.opponentScore !== undefined ? game.opponentScore : ''}
                     </td>
                     <td className="p-1.5 text-center whitespace-nowrap">
                       <span
@@ -587,8 +613,18 @@ const GamePage: React.FC = () => {
                       min="0"
                       required
                       className="input-field"
-                      value={formData.ourScore}
-                      onChange={(e) => setFormData({ ...formData, ourScore: parseInt(e.target.value) || 0 })}
+                      value={formData.ourScore === '' ? '' : formData.ourScore}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setFormData({ ...formData, ourScore: '' });
+                        } else {
+                          const numValue = parseInt(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            setFormData({ ...formData, ourScore: numValue });
+                          }
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -598,8 +634,18 @@ const GamePage: React.FC = () => {
                       min="0"
                       required
                       className="input-field"
-                      value={formData.opponentScore}
-                      onChange={(e) => setFormData({ ...formData, opponentScore: parseInt(e.target.value) || 0 })}
+                      value={formData.opponentScore === '' ? '' : formData.opponentScore}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setFormData({ ...formData, opponentScore: '' });
+                        } else {
+                          const numValue = parseInt(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            setFormData({ ...formData, opponentScore: numValue });
+                          }
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -622,7 +668,7 @@ const GamePage: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium mb-2 text-white">쿼터별 점수 (선택사항)</label>
                   <div className="grid grid-cols-2 gap-4">
-                    {(['q1', 'q2', 'q3', 'q4'] as const).map((q, index) => (
+                    {(['q1', 'q2', 'q3', 'q4', 'q5', 'q6'] as const).map((q, index) => (
                       <div key={q} className="bg-gray-800 rounded-lg p-4">
                         <p className="text-sm text-gray-300 mb-3 font-semibold">{index + 1}쿼터</p>
                         <div className="space-y-2">
@@ -632,16 +678,31 @@ const GamePage: React.FC = () => {
                               type="number"
                               min="0"
                               className="input-field text-sm"
+                              disabled={formData.quarters[q].result === '미진행'}
                               value={formData.quarters[q].our === '' ? '' : formData.quarters[q].our}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  quarters: {
-                                    ...formData.quarters,
-                                    [q]: { ...formData.quarters[q], our: e.target.value === '' ? '' : parseInt(e.target.value) || '' },
-                                  },
-                                })
-                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  setFormData({
+                                    ...formData,
+                                    quarters: {
+                                      ...formData.quarters,
+                                      [q]: { ...formData.quarters[q], our: '' },
+                                    },
+                                  });
+                                } else {
+                                  const numValue = parseInt(value);
+                                  if (!isNaN(numValue) && numValue >= 0) {
+                                    setFormData({
+                                      ...formData,
+                                      quarters: {
+                                        ...formData.quarters,
+                                        [q]: { ...formData.quarters[q], our: numValue },
+                                      },
+                                    });
+                                  }
+                                }
+                              }}
                             />
                           </div>
                           <div>
@@ -650,16 +711,31 @@ const GamePage: React.FC = () => {
                               type="number"
                               min="0"
                               className="input-field text-sm"
+                              disabled={formData.quarters[q].result === '미진행'}
                               value={formData.quarters[q].opponent === '' ? '' : formData.quarters[q].opponent}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  quarters: {
-                                    ...formData.quarters,
-                                    [q]: { ...formData.quarters[q], opponent: e.target.value === '' ? '' : parseInt(e.target.value) || '' },
-                                  },
-                                })
-                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  setFormData({
+                                    ...formData,
+                                    quarters: {
+                                      ...formData.quarters,
+                                      [q]: { ...formData.quarters[q], opponent: '' },
+                                    },
+                                  });
+                                } else {
+                                  const numValue = parseInt(value);
+                                  if (!isNaN(numValue) && numValue >= 0) {
+                                    setFormData({
+                                      ...formData,
+                                      quarters: {
+                                        ...formData.quarters,
+                                        [q]: { ...formData.quarters[q], opponent: numValue },
+                                      },
+                                    });
+                                  }
+                                }
+                              }}
                             />
                           </div>
                           <div>
@@ -667,15 +743,22 @@ const GamePage: React.FC = () => {
                             <select
                               className="input-field text-sm"
                               value={formData.quarters[q].result}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const newResult = e.target.value as any;
                                 setFormData({
                                   ...formData,
                                   quarters: {
                                     ...formData.quarters,
-                                    [q]: { ...formData.quarters[q], result: e.target.value as any },
+                                    [q]: { 
+                                      ...formData.quarters[q], 
+                                      result: newResult,
+                                      // 미진행 선택 시 점수 초기화
+                                      our: newResult === '미진행' ? 0 : formData.quarters[q].our,
+                                      opponent: newResult === '미진행' ? 0 : formData.quarters[q].opponent,
+                                    },
                                   },
-                                })
-                              }
+                                });
+                              }}
                             >
                               <option value="승리">승리</option>
                               <option value="무승부">무승부</option>

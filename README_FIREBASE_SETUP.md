@@ -36,9 +36,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 사용자 데이터
     match /users/{userId} {
+      // 읽기: 인증된 사용자만
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId 
-                   || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // 쓰기: 
+      // 1. 인증된 사용자가 자신의 문서를 생성할 수 있음 (회원가입 시)
+      // 2. 인증된 사용자가 자신의 문서를 수정할 수 있음
+      // 3. 관리자가 모든 사용자 문서를 수정/삭제할 수 있음
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && (
+        request.auth.uid == userId || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
     }
     
     // 게시글

@@ -55,6 +55,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/" replace />;
   }
 
+  // 손님 권한은 MAIN, 공지사항, SETTING 페이지만 접근 가능
+  if (userData?.role === 'guest' && currentUser) {
+    const allowedPaths = ['/', '/notice', '/setting', '/notice/'];
+    const currentPath = window.location.pathname;
+    const isAllowed = allowedPaths.some(path => 
+      currentPath === path || currentPath.startsWith(path + '/')
+    );
+    
+    if (!isAllowed) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
   return <>{children}</>;
 };
 
