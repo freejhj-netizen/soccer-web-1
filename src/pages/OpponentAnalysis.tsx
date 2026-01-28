@@ -1,21 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { OpponentAnalysis } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon, FilmIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, FilmIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
+
+type SortField = 'date' | 'teamA' | 'teamB' | 'ageGroup' | 'type' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
 
 const OpponentAnalysisPage: React.FC = () => {
   const { userData } = useAuth();
   const [analyses, setAnalyses] = useState<OpponentAnalysis[]>([]);
   const [filteredAnalyses, setFilteredAnalyses] = useState<OpponentAnalysis[]>([]);
+  const [sortedAnalyses, setSortedAnalyses] = useState<OpponentAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingAnalysis, setEditingAnalysis] = useState<OpponentAnalysis | null>(null);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [ageFilter, setAgeFilter] = useState<string>('전체');
   const [teamFilter, setTeamFilter] = useState('');
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     date: '',
     teamA: '',
@@ -37,13 +45,18 @@ const OpponentAnalysisPage: React.FC = () => {
     filterAnalyses();
   }, [analyses, dateRange, ageFilter, teamFilter]);
 
+  useEffect(() => {
+    sortAnalyses();
+  }, [filteredAnalyses, sortField, sortDirection]);
+
   const fetchAnalyses = async () => {
     if (!db) {
       setLoading(false);
       return;
     }
     try {
-      const q = query(collection(db, 'opponentAnalyses'), orderBy('date', 'desc'));
+      // 등록순 정렬 (최근 등록이 상단)
+      const q = query(collection(db, 'opponentAnalyses'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       const analysesData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -72,7 +85,7 @@ const OpponentAnalysisPage: React.FC = () => {
       filtered = filtered.filter((a) => {
         const date = a.date?.toDate ? a.date.toDate() : new Date(a.date);
         const endDate = new Date(dateRange.end);
-        endDate.setHours(23, 59, 59, 999); // 종료일 하루 끝까지 포함
+        endDate.setHours(23, 59, 59, 999);
         return date <= endDate;
       });
     }
@@ -92,7 +105,86 @@ const OpponentAnalysisPage: React.FC = () => {
     }
 
     setFilteredAnalyses(filtered);
+    setCurrentPage(1); // 필터 변경 시 첫 페이지로
   };
+
+  const sortAnalyses = () => {
+    let sorted = [...filteredAnalyses];
+
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'date':
+          aValue = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+          bValue = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+          break;
+        case 'teamA':
+          aValue = a.teamA.toLowerCase();
+          bValue = b.teamA.toLowerCase();
+          break;
+        case 'teamB':
+          aValue = a.teamB.toLowerCase();
+          bValue = b.teamB.toLowerCase();
+          break;
+        case 'ageGroup':
+          aValue = a.ageGroup;
+          bValue = b.ageGroup;
+          break;
+        case 'type':
+          aValue = a.type;
+          bValue = b.type;
+          break;
+        case 'createdAt':
+          aValue = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+          bValue = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setSortedAnalyses(sorted);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const isNew = (createdAt: any) => {
+    if (!createdAt) return false;
+    const created = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+    const now = new Date();
+    const diffTime = now.getTime() - created.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays <= 3;
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUpIcon className="w-3 h-3 inline ml-1" />
+    ) : (
+      <ChevronDownIcon className="w-3 h-3 inline ml-1" />
+    );
+  };
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(sortedAnalyses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAnalyses = sortedAnalyses.slice(startIndex, endIndex);
 
   const handleAdd = () => {
     setEditingAnalysis(null);
@@ -155,7 +247,7 @@ const OpponentAnalysisPage: React.FC = () => {
         ageGroup: formData.ageGroup,
         videoUrl: formData.videoUrl,
         type: formData.type,
-        createdAt: editingAnalysis?.createdAt || new Date(),
+        createdAt: editingAnalysis?.createdAt || serverTimestamp(),
       };
 
       if (editingAnalysis) {
@@ -253,29 +345,84 @@ const OpponentAnalysisPage: React.FC = () => {
         </div>
       </div>
 
+      {/* 페이지네이션 컨트롤 (상단) */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-2 whitespace-nowrap">
+          <label className="text-sm text-white whitespace-nowrap">표시 개수:</label>
+          <select
+            className="input-field text-sm py-1 px-2"
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={30}>30개</option>
+            <option value={50}>50개</option>
+            <option value={100}>100개</option>
+          </select>
+        </div>
+        <div className="text-sm text-gray-400 whitespace-nowrap">
+          총 {sortedAnalyses.length}개 중 {startIndex + 1}-{Math.min(endIndex, sortedAnalyses.length)}개 표시
+        </div>
+      </div>
+
       <div className="card overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-700">
-              <th className="text-center p-1.5 text-white whitespace-nowrap">날짜</th>
-              <th className="text-center p-1.5 text-white whitespace-nowrap">A팀</th>
-              <th className="text-center p-1.5 text-white whitespace-nowrap">B팀</th>
-              <th className="text-center p-1.5 text-white whitespace-nowrap">연령</th>
+              <th 
+                className="text-center p-1.5 text-white whitespace-nowrap cursor-pointer hover:bg-gray-800"
+                onClick={() => handleSort('date')}
+              >
+                날짜 {getSortIcon('date')}
+              </th>
+              <th 
+                className="text-center p-1.5 text-white whitespace-nowrap cursor-pointer hover:bg-gray-800"
+                onClick={() => handleSort('teamA')}
+              >
+                A팀 {getSortIcon('teamA')}
+              </th>
+              <th 
+                className="text-center p-1.5 text-white whitespace-nowrap cursor-pointer hover:bg-gray-800"
+                onClick={() => handleSort('teamB')}
+              >
+                B팀 {getSortIcon('teamB')}
+              </th>
+              <th 
+                className="text-center p-1.5 text-white whitespace-nowrap cursor-pointer hover:bg-gray-800"
+                onClick={() => handleSort('ageGroup')}
+              >
+                연령 {getSortIcon('ageGroup')}
+              </th>
               <th className="text-center p-1.5 text-white whitespace-nowrap">영상</th>
-              <th className="text-center p-1.5 text-white whitespace-nowrap">경기종류</th>
+              <th 
+                className="text-center p-1.5 text-white whitespace-nowrap cursor-pointer hover:bg-gray-800"
+                onClick={() => handleSort('type')}
+              >
+                경기종류 {getSortIcon('type')}
+              </th>
               {isAdmin && (
                 <th className="text-center p-1.5 text-white whitespace-nowrap">관리</th>
               )}
             </tr>
           </thead>
           <tbody>
-            {filteredAnalyses.map((analysis) => {
+            {paginatedAnalyses.map((analysis) => {
               const scoreA = analysis.teamAScore === '' || analysis.teamAScore === null ? null : analysis.teamAScore;
               const scoreB = analysis.teamBScore === '' || analysis.teamBScore === null ? null : analysis.teamBScore;
+              const isNewItem = isNew(analysis.createdAt);
               
               return (
                 <tr key={analysis.id} className="border-b border-gray-700 hover:bg-gray-800">
-                  <td className="p-1.5 text-white text-center whitespace-nowrap">{formatDate(analysis.date)}</td>
+                  <td className="p-1.5 text-white text-center whitespace-nowrap">
+                    <div className="flex flex-col items-center">
+                      {isNewItem && (
+                        <span className="text-xs text-red-500 font-bold mb-1">🆕 NEW</span>
+                      )}
+                      <span>{formatDate(analysis.date)}</span>
+                    </div>
+                  </td>
                   <td className="p-1.5 text-center">
                     <div className="flex flex-col items-center">
                       <span className="text-white whitespace-nowrap">{analysis.teamA}</span>
@@ -332,12 +479,45 @@ const OpponentAnalysisPage: React.FC = () => {
           </tbody>
         </table>
 
-        {filteredAnalyses.length === 0 && (
+        {paginatedAnalyses.length === 0 && (
           <div className="text-center text-gray-400 py-12">
             분석 데이터가 없습니다.
           </div>
         )}
       </div>
+
+      {/* 페이지네이션 (하단) */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-2 mt-4">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700"
+          >
+            이전
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 rounded ${
+                currentPage === page
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700"
+          >
+            다음
+          </button>
+        </div>
+      )}
 
       {/* 모달 */}
       {showModal && (
@@ -485,4 +665,3 @@ const OpponentAnalysisPage: React.FC = () => {
 };
 
 export default OpponentAnalysisPage;
-

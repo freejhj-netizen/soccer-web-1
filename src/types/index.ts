@@ -8,6 +8,8 @@ export interface User {
   createdAt: any;
   lastLogin?: any;
   deletedAt?: any; // 회원탈퇴 시각 (30일 후 자동 삭제)
+  childName?: string; // 자녀(선수) 이름 (선택)
+  ageGroup?: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7' | '졸업'; // 자녀(선수) 나이 (선택)
 }
 
 export interface Player {

@@ -208,6 +208,24 @@ const Setting: React.FC = () => {
                   value={getRoleLabel(userData?.role || 'guest')}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">자녀(선수) 이름</label>
+                <input
+                  type="text"
+                  disabled
+                  className="input-field bg-gray-800"
+                  value={userData?.childName || '미입력'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-white">자녀(선수) 나이</label>
+                <input
+                  type="text"
+                  disabled
+                  className="input-field bg-gray-800"
+                  value={userData?.ageGroup || '미입력'}
+                />
+              </div>
             </div>
           </div>
 

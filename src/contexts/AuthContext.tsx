@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import type { User } from '../types';
 
@@ -42,10 +42,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('👤 관리자 이메일:', adminEmail);
   }
 
+  // 년도 변경 시 자동 나이 업데이트
+  const updateAgeGroupsOnYearChange = async () => {
+    if (!db) return;
+    const dbRef = db!;
+    
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth(); // 0-11
+      const currentDay = now.getDate();
+      
+      // 1월 1일 이후인지 확인
+      if (currentMonth === 0 && currentDay >= 1) {
+        // 모든 사용자 가져오기
+        const usersSnapshot = await getDocs(collection(dbRef, 'users'));
+        const updates: Promise<void>[] = [];
+        
+        usersSnapshot.forEach((userDoc) => {
+          const userData = userDoc.data() as User;
+          if (userData.ageGroup && userData.ageGroup !== '졸업') {
+            let newAgeGroup: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7' | '졸업' | undefined;
+            
+            switch (userData.ageGroup) {
+              case 'U7':
+                newAgeGroup = 'U8';
+                break;
+              case 'U8':
+                newAgeGroup = 'U9';
+                break;
+              case 'U9':
+                newAgeGroup = 'U10';
+                break;
+              case 'U10':
+                newAgeGroup = 'U11';
+                break;
+              case 'U11':
+                newAgeGroup = 'U12';
+                break;
+              case 'U12':
+                newAgeGroup = '졸업';
+                break;
+            }
+            
+            if (newAgeGroup && newAgeGroup !== userData.ageGroup) {
+              updates.push(
+                updateDoc(doc(dbRef, 'users', userDoc.id), {
+                  ageGroup: newAgeGroup,
+                })
+              );
+            }
+          }
+        });
+        
+        if (updates.length > 0) {
+          await Promise.all(updates);
+          console.log(`✅ ${updates.length}명의 나이 그룹이 자동 업데이트되었습니다.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating age groups:', error);
+    }
+  };
+
   const fetchUserData = async (uid: string, email?: string | null) => {
     if (!db) return;
+    const dbRef = db!;
     try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
+      // 년도 변경 시 자동 업데이트 (로그인 시마다 체크)
+      await updateAgeGroupsOnYearChange();
+      
+      const userDoc = await getDoc(doc(dbRef, 'users', uid));
       if (userDoc.exists()) {
         setUserData(userDoc.data() as User);
       } else {
@@ -74,20 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!auth) {
-      // Firebase가 설정되지 않은 경우
-      // 개발 모드이고 로컬호스트인 경우 더미 관리자 데이터 생성
-      if (isDevMode && isLocalhost) {
-        const devUser: User = {
-          uid: 'dev-admin-uid',
-          email: adminEmail,
-          role: 'admin',
-          createdAt: new Date(),
-        };
-        setUserData(devUser);
-        setLoading(false);
-        console.log('🔧 개발 모드: 관리자 권한으로 자동 로그인');
-        return;
-      }
       setLoading(false);
       return;
     }
@@ -122,19 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Firestore에서 사용자 데이터 가져오기 (실제 role 사용)
         await fetchUserData(user.uid, user.email);
       } else {
-        // 로그인하지 않은 상태에서 개발 모드인 경우
-        if (isDevMode && isLocalhost) {
-          const devUser: User = {
-            uid: 'dev-admin-uid',
-            email: adminEmail,
-            role: 'admin',
-            createdAt: new Date(),
-          };
-          setUserData(devUser);
-          console.log('🔧 개발 모드: 로그인 없이 관리자 권한으로 접근');
-        } else {
-          setUserData(null);
-        }
+        setUserData(null);
       }
       setLoading(false);
     });

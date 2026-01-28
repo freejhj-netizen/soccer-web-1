@@ -11,6 +11,8 @@ const Admin: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [editingChildName, setEditingChildName] = useState('');
+  const [editingAgeGroup, setEditingAgeGroup] = useState<'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7' | '졸업' | ''>('');
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'deleted'>('active');
@@ -80,10 +82,14 @@ const Admin: React.FC = () => {
       setExpandedUser(null);
       setSelectedUser(null);
       setSelectedRole(null);
+      setEditingChildName('');
+      setEditingAgeGroup('');
     } else {
       setExpandedUser(user.uid);
       setSelectedUser(user);
       setSelectedRole(user.role);
+      setEditingChildName(user.childName || '');
+      setEditingAgeGroup(user.ageGroup || '');
     }
   };
 
@@ -100,6 +106,28 @@ const Admin: React.FC = () => {
     } catch (error) {
       console.error('Error updating role:', error);
       alert('권한 변경에 실패했습니다.');
+    }
+  };
+
+  const handleSaveChildInfo = async () => {
+    if (!selectedUser || !db) return;
+    
+    try {
+      const updateData: any = {};
+      if (editingChildName !== undefined) {
+        updateData.childName = editingChildName.trim() || null;
+      }
+      if (editingAgeGroup) {
+        updateData.ageGroup = editingAgeGroup;
+      }
+      
+      await updateDoc(doc(db, 'users', selectedUser.uid), updateData);
+      fetchUsers();
+      setSelectedUser({ ...selectedUser, childName: editingChildName.trim() || undefined, ageGroup: editingAgeGroup as any });
+      alert('자녀 정보가 변경되었습니다.');
+    } catch (error) {
+      console.error('Error updating child info:', error);
+      alert('자녀 정보 변경에 실패했습니다.');
     }
   };
 
@@ -300,6 +328,41 @@ const Admin: React.FC = () => {
                         </div>
                         <button
                           onClick={handleSaveRole}
+                          className="mt-3 bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                        >
+                          저장
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">자녀(선수) 이름</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="자녀(선수) 이름 입력"
+                          value={editingChildName}
+                          onChange={(e) => setEditingChildName(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-white">자녀(선수) 나이</label>
+                        <select
+                          className="input-field"
+                          value={editingAgeGroup}
+                          onChange={(e) => setEditingAgeGroup(e.target.value as any)}
+                        >
+                          <option value="">선택 안함</option>
+                          <option value="U12">U12</option>
+                          <option value="U11">U11</option>
+                          <option value="U10">U10</option>
+                          <option value="U9">U9</option>
+                          <option value="U8">U8</option>
+                          <option value="U7">U7</option>
+                          <option value="졸업">졸업</option>
+                        </select>
+                        <button
+                          onClick={handleSaveChildInfo}
                           className="mt-3 bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
                         >
                           저장
