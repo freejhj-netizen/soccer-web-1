@@ -4,7 +4,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
+import AppInstallGuide from '../components/AppInstallGuide';
 
 const Setting: React.FC = () => {
   const { currentUser, userData, logout } = useAuth();
@@ -176,6 +176,8 @@ const Setting: React.FC = () => {
         <h1 className="text-3xl font-bold mb-8 text-white">설정</h1>
 
         <div className="max-w-2xl space-y-6">
+          <AppInstallGuide />
+
           {/* 프로필 정보 */}
           <div className="card">
             <h2 className="text-xl font-bold mb-4 text-white">프로필 정보</h2>
