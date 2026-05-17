@@ -1,0 +1,60 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdminUser() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'cjjhj@naver.com' ||
+        (
+          firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
+    }
+
+    function isImageUpload() {
+      return request.resource.contentType == null
+        || request.resource.contentType.matches('image/.*')
+        || request.resource.contentType == 'application/octet-stream';
+    }
+
+    // 공지사항 이미지
+    match /posts/images/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminUser()
+        && request.resource.size < 10 * 1024 * 1024
+        && isImageUpload();
+    }
+
+    // 공지사항 첨부 파일
+    match /posts/files/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminUser() && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // 메인 갤러리
+    match /gallery/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminUser()
+        && request.resource.size < 10 * 1024 * 1024
+        && isImageUpload();
+    }
+
+    // 선수 사진
+    match /players/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminUser()
+        && request.resource.size < 10 * 1024 * 1024
+        && isImageUpload();
+    }
+
+    // 유니폼
+    match /uniforms/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminUser() && request.resource.size < 10 * 1024 * 1024;
+    }
+  }
+}

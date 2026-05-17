@@ -5,12 +5,20 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Schedule } from '../types';
 
 import { PlusIcon, PencilIcon, TrashIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { CLUB_NAME } from '../constants/club';
+import PaginationControls from '../components/PaginationControls';
+
+type ScheduleTab = 'upcoming' | 'completed';
 
 const Calendar: React.FC = () => {
   const { userData } = useAuth();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [upcomingSchedules, setUpcomingSchedules] = useState<Schedule[]>([]);
-  const [filteredSchedules, setFilteredSchedules] = useState<Schedule[]>([]);
+  const [upcomingList, setUpcomingList] = useState<Schedule[]>([]);
+  const [pastList, setPastList] = useState<Schedule[]>([]);
+  const [activeTab, setActiveTab] = useState<ScheduleTab>('upcoming');
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
@@ -25,8 +33,6 @@ const Calendar: React.FC = () => {
     type: '연습경기' as '대회' | '연습경기' | '리그' | '스토브리그',
     location: '',
   });
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 15;
   const [countdowns, setCountdowns] = useState<{ [key: string]: { days: number; hours: number; minutes: number; seconds: number } }>({});
 
   const isAdmin = userData?.role === 'admin';
@@ -101,6 +107,9 @@ const Calendar: React.FC = () => {
     }
   };
 
+  const getScheduleDate = (schedule: Schedule) =>
+    schedule.dateTime.toDate ? schedule.dateTime.toDate() : new Date(schedule.dateTime);
+
   const filterSchedules = () => {
     let filtered = [...schedules];
 
@@ -120,31 +129,18 @@ const Calendar: React.FC = () => {
       filtered = filtered.filter((s) => s.ageGroup === ageFilter);
     }
 
-    // 정렬: 미래 일정은 내림차순(가장 늦은 날짜가 위), 과거 일정은 오름차순(가장 오래된 날짜가 아래)
     const now = new Date();
-    const futureSchedules = filtered.filter((s) => {
-      const date = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
-      return date >= now;
-    }).sort((a, b) => {
-      const dateA = a.dateTime.toDate ? a.dateTime.toDate() : new Date(a.dateTime);
-      const dateB = b.dateTime.toDate ? b.dateTime.toDate() : new Date(b.dateTime);
-      return dateB.getTime() - dateA.getTime(); // 내림차순
-    });
+    const futureSchedules = filtered
+      .filter((s) => getScheduleDate(s) >= now)
+      .sort((a, b) => getScheduleDate(a).getTime() - getScheduleDate(b).getTime());
 
-    const pastSchedules = filtered.filter((s) => {
-      const date = s.dateTime.toDate ? s.dateTime.toDate() : new Date(s.dateTime);
-      return date < now;
-    }).sort((a, b) => {
-      const dateA = a.dateTime.toDate ? a.dateTime.toDate() : new Date(a.dateTime);
-      const dateB = b.dateTime.toDate ? b.dateTime.toDate() : new Date(b.dateTime);
-      return dateA.getTime() - dateB.getTime(); // 오름차순
-    });
+    const pastSchedules = filtered
+      .filter((s) => getScheduleDate(s) < now)
+      .sort((a, b) => getScheduleDate(b).getTime() - getScheduleDate(a).getTime());
 
-    // 미래 일정 + 과거 일정 순서로 합치기
-    filtered = [...futureSchedules, ...pastSchedules];
-
-    setFilteredSchedules(filtered);
-    setPage(1);
+    setUpcomingList(futureSchedules);
+    setPastList(pastSchedules);
+    setCurrentPage(1);
   };
 
   const formatDateTime = (dateTime: any) => {
@@ -235,8 +231,99 @@ const Calendar: React.FC = () => {
   };
 
 
-  const paginatedSchedules = filteredSchedules.slice(0, page * itemsPerPage);
-  const hasMore = filteredSchedules.length > page * itemsPerPage;
+  const activeList = activeTab === 'upcoming' ? upcomingList : pastList;
+  const totalPages = Math.max(1, Math.ceil(activeList.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSchedules = activeList.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleTabChange = (tab: ScheduleTab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (count: number) => {
+    setItemsPerPage(count);
+    setCurrentPage(1);
+  };
+
+  const renderScheduleCard = (schedule: Schedule) => {
+    const { date, weekday, time } = formatDateTime(schedule.dateTime);
+    const past = isPast(schedule.dateTime);
+    const location = (schedule as Schedule & { location?: string }).location || '장소 미정';
+    const teamName =
+      schedule.homeAway === 'HOME'
+        ? `${CLUB_NAME} vs ${schedule.opponent}`
+        : `${schedule.opponent} vs ${CLUB_NAME}`;
+
+    return (
+      <div
+        key={schedule.id}
+        className={`card p-4 ${past ? 'bg-gray-700' : 'bg-gray-900'}`}
+      >
+        <div className="flex items-center space-x-2 mb-3">
+          <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">경기</span>
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-semibold ${
+              schedule.homeAway === 'HOME' ? 'bg-blue-500' : 'bg-blue-600'
+            } text-white`}
+          >
+            {schedule.homeAway}
+          </span>
+          <span className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            {schedule.ageGroup}
+          </span>
+          {past && (
+            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              종료
+            </span>
+          )}
+        </div>
+
+        <p className="text-white font-bold mb-3">{teamName}</p>
+
+        <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
+          <CalendarIcon className="w-4 h-4 text-blue-400" />
+          <span>
+            {date} {weekday}
+          </span>
+          <ClockIcon className="w-4 h-4 ml-2 text-gray-400" />
+          <span>{time}</span>
+        </div>
+
+        <div className="flex items-center space-x-2 mb-3 text-sm text-gray-300">
+          <MapPinIcon className="w-4 h-4 text-pink-400" />
+          <span>{location}</span>
+          <span className="text-lg ml-2">⚽</span>
+          <span className="text-red-500">{schedule.type}</span>
+        </div>
+
+        {isAdmin && (
+          <div className="flex space-x-2 mt-3">
+            <button
+              onClick={() => handleEdit(schedule)}
+              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors flex items-center space-x-1"
+            >
+              <PencilIcon className="w-4 h-4" />
+              <span className="text-sm">수정</span>
+            </button>
+            <button
+              onClick={() => handleDelete(schedule.id)}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center space-x-1"
+            >
+              <TrashIcon className="w-4 h-4" />
+              <span className="text-sm">삭제</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -267,8 +354,8 @@ const Calendar: React.FC = () => {
                 const { date, weekday, time } = formatDateTime(schedule.dateTime);
                 const location = (schedule as any).location || '장소 미정';
                 const teamName = schedule.homeAway === 'HOME' 
-                  ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
-                  : `${schedule.opponent} vs NYJ BJ UTD U12`;
+                  ? `${CLUB_NAME} vs ${schedule.opponent}`
+                  : `${schedule.opponent} vs ${CLUB_NAME}`;
                 const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                 
                 return (
@@ -362,7 +449,7 @@ const Calendar: React.FC = () => {
 
         {/* 필터 */}
         <section className="mb-6">
-          <h2 className="text-2xl font-bold mb-4">전체 일정</h2>
+          <h2 className="text-2xl font-bold mb-4">일정 목록</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium mb-2">연도</label>
@@ -410,93 +497,62 @@ const Calendar: React.FC = () => {
           </div>
         </section>
 
+        <div className="flex border-b border-gray-700 mb-6">
+          <button
+            type="button"
+            onClick={() => handleTabChange('upcoming')}
+            className={`flex-1 py-3 text-center font-semibold transition-colors ${
+              activeTab === 'upcoming'
+                ? 'text-gold-500 border-b-2 border-gold-500'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            예정 ({upcomingList.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('completed')}
+            className={`flex-1 py-3 text-center font-semibold transition-colors ${
+              activeTab === 'completed'
+                ? 'text-gold-500 border-b-2 border-gold-500'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            완료 ({pastList.length})
+          </button>
+        </div>
+
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={activeList.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          showPageNumbers={false}
+        />
+
         {/* 일정 리스트 */}
-        <div className="space-y-4">
-          {paginatedSchedules.map((schedule) => {
-            const { date, weekday, time } = formatDateTime(schedule.dateTime);
-            const past = isPast(schedule.dateTime);
-            const location = (schedule as any).location || '장소 미정';
-            const teamName = schedule.homeAway === 'HOME' 
-              ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
-              : `${schedule.opponent} vs NYJ BJ UTD U12`;
-            
-            return (
-              <div
-                key={schedule.id}
-                className={`card p-4 ${past ? 'bg-gray-700' : 'bg-gray-900'}`}
-              >
-                {/* 태그 */}
-                <div className="flex items-center space-x-2 mb-3">
-                  <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">경기</span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                    schedule.homeAway === 'HOME' ? 'bg-blue-500' : 'bg-blue-600'
-                  } text-white`}>
-                    {schedule.homeAway}
-                  </span>
-                  <span className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                    {schedule.ageGroup}
-                  </span>
-                  {past && (
-                    <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      종료
-                    </span>
-                  )}
-                </div>
-                
-                {/* 팀명 vs 팀명 */}
-                <p className="text-white font-bold mb-3">{teamName}</p>
-                
-                {/* 날짜/시간 */}
-                <div className="flex items-center space-x-2 mb-2 text-sm text-gray-300">
-                  <CalendarIcon className="w-4 h-4 text-blue-400" />
-                  <span>{date} {weekday}</span>
-                  <ClockIcon className="w-4 h-4 ml-2 text-gray-400" />
-                  <span>{time}</span>
-                </div>
-                
-                {/* 위치 및 경기 종류 (한 줄) */}
-                <div className="flex items-center space-x-2 mb-3 text-sm text-gray-300">
-                  <MapPinIcon className="w-4 h-4 text-pink-400" />
-                  <span>{location}</span>
-                  <span className="text-lg ml-2">⚽</span>
-                  <span className="text-red-500">{schedule.type}</span>
-                </div>
-                
-                {/* 관리자 버튼 */}
-                {isAdmin && (
-                  <div className="flex space-x-2 mt-3">
-                    <button
-                      onClick={() => handleEdit(schedule)}
-                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors flex items-center space-x-1"
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                      <span className="text-sm">수정</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(schedule.id)}
-                      className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center space-x-1"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                      <span className="text-sm">삭제</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="space-y-4 mt-2">
+          {paginatedSchedules.map((schedule) => renderScheduleCard(schedule))}
         </div>
 
         {paginatedSchedules.length === 0 && (
-          <div className="text-center text-gray-400 py-12">일정이 없습니다.</div>
-        )}
-
-        {hasMore && (
-          <div className="text-center mt-6">
-            <button onClick={() => setPage(page + 1)} className="btn-outline">
-              더보기
-            </button>
+          <div className="text-center text-gray-400 py-12">
+            {activeTab === 'upcoming' ? '예정된 일정이 없습니다.' : '완료된 일정이 없습니다.'}
           </div>
         )}
+
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={activeList.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          showTopBar={false}
+        />
+
 
         {/* 모달 */}
         {showModal && (

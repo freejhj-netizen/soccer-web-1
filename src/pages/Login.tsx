@@ -47,15 +47,15 @@ const Login: React.FC = () => {
         <div className="text-center">
           <img 
             src="/로고.png" 
-            alt="NYJ BJ UTD U12 로고" 
-            className="w-20 h-20 object-contain mx-auto mb-4"
+            alt="남양주축구센터 U12 로고" 
+            className="max-w-[200px] w-full h-auto max-h-28 object-contain mx-auto mb-4"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
             }}
           />
           <h2 className="text-3xl font-bold text-white">로그인</h2>
-          <p className="mt-2 text-gray-300">NYJ BJ UTD U12</p>
+          <p className="mt-2 text-gray-300">남양주축구센터 U12</p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (

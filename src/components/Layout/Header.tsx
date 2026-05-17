@@ -48,8 +48,8 @@ const Header: React.FC = () => {
           <Link to="/" className="flex items-center space-x-3">
             <img 
               src="/로고.png" 
-              alt="NYJ BJ UTD U12 로고" 
-              className="w-12 h-12 object-contain"
+              alt="남양주축구센터 U12 로고" 
+              className="h-12 w-auto max-w-[3.5rem] object-contain"
               onError={(e) => {
                 // 이미지 로드 실패 시 기본 로고 표시
                 const target = e.target as HTMLImageElement;
@@ -59,9 +59,9 @@ const Header: React.FC = () => {
               }}
             />
             <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center hidden">
-              <span className="text-black font-bold text-lg">NYJ</span>
+              <span className="text-black font-bold text-[10px] text-center leading-tight">남양주</span>
             </div>
-            <span className="font-bold text-lg text-gold">NYJ BJ UTD U12</span>
+            <span className="font-bold text-base sm:text-lg text-gold leading-tight">남양주축구센터 U12</span>
           </Link>
 
           {/* Desktop Menu */}
@@ -115,14 +115,14 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-3">
             <img 
               src="/로고.png" 
-              alt="NYJ BJ UTD U12 로고" 
-              className="w-10 h-10 object-contain"
+              alt="남양주축구센터 U12 로고" 
+              className="h-10 w-auto max-w-[3rem] object-contain"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
               }}
             />
-            <span className="font-bold text-lg text-gold">NYJ BJ UTD U12</span>
+            <span className="font-bold text-base text-gold leading-tight">남양주축구센터 U12</span>
           </div>
           <button
             onClick={() => setIsMenuOpen(false)}

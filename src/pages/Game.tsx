@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Game } from '../types';
 
 import { PlusIcon, FilmIcon } from '@heroicons/react/24/outline';
+import PaginationControls from '../components/PaginationControls';
 
 const GamePage: React.FC = () => {
   const { userData } = useAuth();
@@ -21,6 +22,8 @@ const GamePage: React.FC = () => {
   const [ageFilter, setAgeFilter] = useState<string>('전체');
   const [typeFilter, setTypeFilter] = useState<string>('전체');
   const [opponentFilter, setOpponentFilter] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [currentPage, setCurrentPage] = useState(1);
   const [stats, setStats] = useState({
     total: 0,
     wins: 0,
@@ -72,11 +75,27 @@ const GamePage: React.FC = () => {
 
   useEffect(() => {
     filterGames();
+    setCurrentPage(1);
   }, [games, seasonFilter, dateRange, ageFilter, typeFilter, opponentFilter]);
 
   useEffect(() => {
     calculateStats();
   }, [filteredGames]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredGames.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedGames = filteredGames.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleItemsPerPageChange = (count: number) => {
+    setItemsPerPage(count);
+    setCurrentPage(1);
+  };
 
   const fetchGames = async () => {
     if (!db) {
@@ -457,6 +476,15 @@ const GamePage: React.FC = () => {
         {/* 경기별 일정 */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-4 text-white">경기별 일정</h2>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredGames.length}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            showPageNumbers={false}
+          />
           <div className="card overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -471,7 +499,7 @@ const GamePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredGames.map((game) => (
+                {paginatedGames.map((game) => (
                   <tr
                     key={game.id}
                     className="border-b border-gray-700 hover:bg-gray-800 cursor-pointer transition-colors"
@@ -517,6 +545,15 @@ const GamePage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredGames.length}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            showTopBar={false}
+          />
         </div>
 
         {filteredGames.length === 0 && (

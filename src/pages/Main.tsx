@@ -9,6 +9,7 @@ import { TextEditModal } from '../components/TextEditModal';
 import { PencilIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { CLUB_NAME } from '../constants/club';
 
 const Main: React.FC = () => {
   const { userData } = useAuth();
@@ -86,7 +87,7 @@ const Main: React.FC = () => {
       const defaultContent: MainContent = {
         images: [],
         clubIntro: {
-          title: 'NYJ BJ UTD U12',
+          title: CLUB_NAME,
           content: '유소년 축구클럽에 오신 것을 환영합니다.',
         },
         management: {
@@ -123,7 +124,7 @@ const Main: React.FC = () => {
         const defaultContent: MainContent = {
           images: [],
           clubIntro: {
-            title: 'NYJ BJ UTD U12',
+            title: CLUB_NAME,
             content: '유소년 축구클럽에 오신 것을 환영합니다.',
           },
           management: {
@@ -153,7 +154,7 @@ const Main: React.FC = () => {
       const defaultContent: MainContent = {
         images: [],
         clubIntro: {
-          title: 'NYJ BJ UTD U12',
+          title: CLUB_NAME,
           content: '유소년 축구클럽에 오신 것을 환영합니다.',
         },
         management: {
@@ -299,77 +300,6 @@ const Main: React.FC = () => {
       alert('저장에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
     }
   };
-
-  const handleUniformImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'home' | 'away' | 'third') => {
-    const file = e.target.files?.[0];
-    if (!file || !content || !storage || !db) {
-      alert('Firebase 설정이 필요합니다.');
-      return;
-    }
-
-    try {
-      const storageRef = ref(storage, `uniforms/${type}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      const updatedContent: MainContent = {
-        ...content,
-        uniform: {
-          home: content.uniform?.home || '',
-          away: content.uniform?.away || '',
-          third: content.uniform?.third || '',
-          [type]: downloadURL,
-        },
-      };
-      
-      const docRef = doc(db, 'mainContent', 'content');
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        await updateDoc(docRef, updatedContent as any);
-      } else {
-        await setDoc(docRef, updatedContent as any);
-      }
-      
-      setContent(updatedContent);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('이미지 업로드에 실패했습니다.');
-    }
-  };
-
-  const handleImageDelete = async (type: 'home' | 'away' | 'third') => {
-    if (!confirm('정말 이 이미지를 삭제하시겠습니까?') || !content || !db) {
-      return;
-    }
-
-    try {
-      const updatedContent: MainContent = {
-        ...content,
-        uniform: {
-          home: content.uniform?.home || '',
-          away: content.uniform?.away || '',
-          third: content.uniform?.third || '',
-          [type]: '',
-        },
-      };
-      
-      const docRef = doc(db, 'mainContent', 'content');
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        await updateDoc(docRef, updatedContent as any);
-      } else {
-        await setDoc(docRef, updatedContent as any);
-      }
-      
-      setContent(updatedContent);
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      alert('이미지 삭제에 실패했습니다.');
-    }
-  };
-
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -658,7 +588,7 @@ const Main: React.FC = () => {
       {/* 공지 페이지 */}
       {activeTab === 'notice' && (
         <div className="space-y-6">
-          {/* NYJ BJ UTD U12 (클럽 소개) */}
+          {/* ${CLUB_NAME} (클럽 소개) */}
           <section className="mb-12">
             <div className="card">
               <div className="relative">
@@ -732,8 +662,8 @@ const Main: React.FC = () => {
                   const { date, weekday, time } = formatDateTime(schedule.dateTime);
                   const location = (schedule as any).location || '장소 미정';
                   const teamName = schedule.homeAway === 'HOME' 
-                    ? `NYJ BJ UTD U12 vs ${schedule.opponent}`
-                    : `${schedule.opponent} vs NYJ BJ UTD U12`;
+                    ? `${CLUB_NAME} vs ${schedule.opponent}`
+                    : `${schedule.opponent} vs ${CLUB_NAME}`;
                   const countdown = countdowns[schedule.id] || { days: 0, hours: 0, minutes: 0, seconds: 0 };
                   
                   return (
@@ -814,101 +744,14 @@ const Main: React.FC = () => {
         <section className="mb-12">
           <div className="card">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* HOME 유니폼 */}
-              <div className="flex flex-col">
-                <span className="text-red-500 text-lg font-bold mb-0">HOME</span>
-                {content?.uniform?.home ? (
-                  <div className="relative group mt-0">
-                    <img
-                      src={content.uniform.home}
-                      alt="HOME 유니폼"
-                      className="w-full object-contain bg-gray-800"
-                    />
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleImageDelete('home')}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        삭제
-                      </button>
-                    )}
+              {(['HOME', 'AWAY', 'THIRD'] as const).map((label) => (
+                <div key={label} className="flex flex-col">
+                  <span className="text-red-500 text-lg font-bold mb-0">{label}</span>
+                  <div className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center mt-0 bg-gray-800">
+                    <span className="text-gray-400 text-lg">&lt;공개 예정&gt;</span>
                   </div>
-                ) : (
-                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleUniformImageUpload(e, 'home')}
-                    />
-                    <span className="text-gray-400 hover:text-gold-500 text-sm">+ 이미지 추가</span>
-                  </label>
-                )}
-              </div>
-
-              {/* AWAY 유니폼 */}
-              <div className="flex flex-col">
-                <span className="text-red-500 text-lg font-bold mb-0">AWAY</span>
-                {content?.uniform?.away ? (
-                  <div className="relative group mt-0">
-                    <img
-                      src={content.uniform.away}
-                      alt="AWAY 유니폼"
-                      className="w-full object-contain bg-gray-800"
-                    />
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleImageDelete('away')}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleUniformImageUpload(e, 'away')}
-                    />
-                    <span className="text-gray-400 hover:text-gold-500 text-sm">+ 이미지 추가</span>
-                  </label>
-                )}
-              </div>
-
-              {/* THIRD 유니폼 */}
-              <div className="flex flex-col">
-                <span className="text-red-500 text-lg font-bold mb-0">THIRD</span>
-                {content?.uniform?.third ? (
-                  <div className="relative group mt-0">
-                    <img
-                      src={content.uniform.third}
-                      alt="THIRD 유니폼"
-                      className="w-full object-contain bg-gray-800"
-                    />
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleImageDelete('third')}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <label className="w-full min-h-[200px] border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-gold-500 transition-colors mt-0">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleUniformImageUpload(e, 'third')}
-                    />
-                    <span className="text-gray-400 hover:text-gold-500 text-sm">+ 이미지 추가</span>
-                  </label>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>

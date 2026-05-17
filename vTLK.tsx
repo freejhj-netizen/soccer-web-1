@@ -122,7 +122,7 @@ const GameDetail: React.FC = () => {
           <div className="card text-center mb-6 bg-gray-900">
             <div className="flex items-center justify-center space-x-4 mb-4">
               <div className="text-center">
-                <p className="font-bold text-white text-base leading-tight">NYJ BJ UTD</p>
+                <p className="font-bold text-white text-base leading-tight">남양주축구센터 U12</p>
                 <p className="font-bold text-white text-base leading-tight">U12</p>
               </div>
               <div className="text-3xl font-bold text-white whitespace-nowrap">

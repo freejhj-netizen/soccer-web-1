@@ -157,15 +157,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const existingRole = userDoc.data()?.role;
             
-            // Firestore에 문서가 없거나 role이 admin이 아닌 경우에만 업데이트
             if (!userDoc.exists() || existingRole !== 'admin') {
               await setDoc(doc(db, 'users', user.uid), {
                 uid: user.uid,
                 email: user.email,
                 role: 'admin',
-                createdAt: new Date(),
               }, { merge: true });
-              console.log('✅ 관리자 권한이 부여되었습니다.');
+              console.log('✅ 관리자 권한이 Firestore에 반영되었습니다.');
             }
           } catch (error) {
             console.error('Error setting admin role:', error);

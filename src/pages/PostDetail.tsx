@@ -116,8 +116,8 @@ const PostDetail: React.FC = () => {
               <div>조회수: {post.views}</div>
             </div>
             <div className="border-t border-gray-700 pt-6">
-              <div 
-                className="text-gray-300 prose prose-invert max-w-none"
+              <div
+                className="text-gray-300 prose prose-invert max-w-none break-words [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded [&_img]:my-2 [&_a]:text-blue-400 [&_a]:underline [&_p]:mb-2"
                 dangerouslySetInnerHTML={{ __html: post.content }}
               />
             </div>
