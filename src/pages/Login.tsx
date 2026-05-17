@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -28,9 +28,11 @@ const Login: React.FC = () => {
       await signInWithEmailAndPassword(auth, email, password);
       // 마지막 로그인 시간 업데이트
       if (auth.currentUser && db) {
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-          lastLogin: serverTimestamp(),
-        });
+        await setDoc(
+          doc(db, 'users', auth.currentUser.uid),
+          { lastLogin: serverTimestamp() },
+          { merge: true },
+        );
         await refreshUserData();
       }
       navigate('/');

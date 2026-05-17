@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { User, UserRole } from '../types';
+import { userFromFirestoreDoc } from '../utils/userDoc';
 
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -28,10 +29,7 @@ const Admin: React.FC = () => {
     }
     try {
       const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersData = querySnapshot.docs
-        .map((doc) => ({
-          ...doc.data(),
-        })) as User[];
+      const usersData = querySnapshot.docs.map((docSnap) => userFromFirestoreDoc(docSnap));
       
       // deletedAt이 없는 활성 계정만 필터링
       const activeUsers = usersData.filter(user => !user.deletedAt);
@@ -99,6 +97,7 @@ const Admin: React.FC = () => {
     try {
       await updateDoc(doc(db, 'users', selectedUser.uid), {
         role: selectedRole,
+        roleUpdatedAt: serverTimestamp(),
       });
       fetchUsers();
       setSelectedUser({ ...selectedUser, role: selectedRole });

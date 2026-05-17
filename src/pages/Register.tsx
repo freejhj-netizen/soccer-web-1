@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+  deleteDoc,
+} from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { resolveRoleForNewAccount } from '../utils/userDoc';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -89,18 +100,30 @@ const Register: React.FC = () => {
         }
       }
 
-      const userRole = user.email === 'cjjhj@naver.com' ? 'admin' : 'guest';
-      
+      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'cjjhj@naver.com';
+      let existingRole;
+      if (existingUserDocId && db) {
+        const oldSnap = await getDoc(doc(db, 'users', existingUserDocId));
+        if (oldSnap.exists()) {
+          existingRole = oldSnap.data().role;
+        }
+      }
+      const userRole = resolveRoleForNewAccount(user.email, adminEmail, existingRole);
+
       try {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          role: userRole,
-          createdAt: serverTimestamp(),
-          deletedAt: null,
-          childName: childName.trim() || null, // 선택 필드
-          ageGroup: ageGroup || null, // 선택 필드
-        });
+        await setDoc(
+          doc(db, 'users', user.uid),
+          {
+            uid: user.uid,
+            email: user.email,
+            role: userRole,
+            createdAt: serverTimestamp(),
+            deletedAt: null,
+            childName: childName.trim() || null,
+            ageGroup: ageGroup || null,
+          },
+          { merge: true },
+        );
         
         if (existingUserDocId && db && existingUserDocId !== user.uid) {
           try {

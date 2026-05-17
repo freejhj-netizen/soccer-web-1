@@ -10,6 +10,8 @@ export interface User {
   deletedAt?: any; // 회원탈퇴 시각 (30일 후 자동 삭제)
   childName?: string; // 자녀(선수) 이름 (선택)
   ageGroup?: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7' | '졸업'; // 자녀(선수) 나이 (선택)
+  ageGroupBumpedYear?: number; // 연령 자동 상향 적용 연도
+  roleUpdatedAt?: any; // 관리자 권한 변경 시각
 }
 
 export interface Player {
