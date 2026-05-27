@@ -70,6 +70,13 @@ const PlayerPage: React.FC = () => {
       filtered = filtered.filter((p) => p.ageGroup === ageFilter);
     }
 
+    filtered.sort((a, b) => {
+      const numA = a.jerseyNumber ?? Number.MAX_SAFE_INTEGER;
+      const numB = b.jerseyNumber ?? Number.MAX_SAFE_INTEGER;
+      if (numA !== numB) return numA - numB;
+      return a.name.localeCompare(b.name, 'ko');
+    });
+
     setFilteredPlayers(filtered);
   };
 
