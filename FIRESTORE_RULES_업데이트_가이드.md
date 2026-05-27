@@ -199,3 +199,4 @@ firebase deploy --only firestore:rules
 - Firebase 보안 규칙 문서: https://firebase.google.com/docs/firestore/security/get-started
 - 규칙 테스트 시뮬레이터: Firebase Console의 규칙 탭에서 "시뮬레이터" 기능 사용 가능
 
+

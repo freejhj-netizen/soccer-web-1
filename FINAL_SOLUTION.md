@@ -69,3 +69,4 @@ git push -u origin main-final-clean --force
 2. 실패하면 **방법 2 시도** (커밋 수정)
 3. 여전히 실패하면 **방법 3 시도** (완전히 새로 시작)
 
+
