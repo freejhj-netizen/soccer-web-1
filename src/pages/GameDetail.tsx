@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Game } from '../types';
 
 import { ArrowLeftIcon, FilmIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { CLUB_NAME } from '../constants/club';
+import { CLUB_NAME_LINE1, CLUB_AGE_GROUP } from '../constants/club';
 
 const GameDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -123,8 +123,8 @@ const GameDetail: React.FC = () => {
           <div className="card text-center mb-6 bg-gray-900">
             <div className="flex items-center justify-center space-x-4 mb-4">
               <div className="text-center">
-                <p className="font-bold text-white text-base leading-tight">{CLUB_NAME}</p>
-                <p className="font-bold text-white text-base leading-tight">U12</p>
+                <p className="font-bold text-white text-base leading-tight">{CLUB_NAME_LINE1}</p>
+                <p className="font-bold text-white text-base leading-tight">{CLUB_AGE_GROUP}</p>
               </div>
               <div className="text-3xl font-bold text-white whitespace-nowrap">
                 {game.ourScore !== null && game.ourScore !== undefined ? game.ourScore : ''} - {game.opponentScore !== null && game.opponentScore !== undefined ? game.opponentScore : ''}

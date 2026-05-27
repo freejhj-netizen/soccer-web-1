@@ -71,7 +71,6 @@ const AppInstallGuide: React.FC = () => {
       )}
 
       <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
-        <li>기존 <strong className="text-white">NYJ BJ UTD</strong> 바로가기가 있으면 삭제</li>
         <li>
           <strong className="text-white">Google Chrome</strong>으로 사이트 접속 (삼성 인터넷·IE는 앱 설치 미지원)
         </li>

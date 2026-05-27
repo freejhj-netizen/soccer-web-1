@@ -18,7 +18,6 @@ const PlayerPage: React.FC = () => {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    nickname: '',
     grade: '',
     position: 'FIELD' as 'FIELD' | 'GK',
     ageGroup: 'U12' as 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7',
@@ -78,7 +77,6 @@ const PlayerPage: React.FC = () => {
     setEditingPlayer(null);
     setFormData({
       name: '',
-      nickname: '',
       grade: '',
       position: 'FIELD',
       ageGroup: 'U12',
@@ -93,7 +91,6 @@ const PlayerPage: React.FC = () => {
     setEditingPlayer(player);
     setFormData({
       name: player.name,
-      nickname: player.nickname || '',
       grade: player.grade,
       position: player.position,
       ageGroup: player.ageGroup,
@@ -139,7 +136,6 @@ const PlayerPage: React.FC = () => {
 
       const playerData = {
         name: formData.name,
-        nickname: formData.nickname,
         grade: formData.grade,
         position: formData.position,
         ageGroup: formData.ageGroup,
@@ -249,10 +245,7 @@ const PlayerPage: React.FC = () => {
                 <div className="p-3">
                   <p className="text-xs text-gray-400 mb-0.5">{positionText}</p>
                   <p className="text-xs text-gray-400 mb-0.5">{player.ageGroup}</p>
-                  <p className="text-xs font-bold text-white mb-0.5">{player.name}</p>
-                  {player.nickname && (
-                    <p className="text-xs text-blue-500 mb-2">{player.nickname}</p>
-                  )}
+                  <p className="text-xs font-bold text-white mb-2">{player.name}</p>
                   {isAdmin && (
                     <>
                       <div className="border-t border-gray-700 my-2"></div>
@@ -302,16 +295,6 @@ const PlayerPage: React.FC = () => {
                     className="input-field"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">별명 *</label>
-                  <input
-                    type="text"
-                    required
-                    className="input-field"
-                    value={formData.nickname}
-                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                   />
                 </div>
                 <div>

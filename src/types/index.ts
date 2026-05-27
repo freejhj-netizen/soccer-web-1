@@ -17,7 +17,6 @@ export interface User {
 export interface Player {
   id: string;
   name: string;
-  nickname?: string;
   grade: string;
   position: 'FIELD' | 'GK';
   ageGroup: 'U12' | 'U11' | 'U10' | 'U9' | 'U8' | 'U7';
